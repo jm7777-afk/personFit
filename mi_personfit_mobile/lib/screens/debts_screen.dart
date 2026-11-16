@@ -4,6 +4,7 @@ import '../services/api_service.dart';
 import '../models/debt_model.dart';
 import '../widgets/debt_card.dart';
 import '../widgets/custom_dialogs.dart';
+import '../widgets/currency_calculator_dialog.dart';
 
 class DebtsScreen extends StatefulWidget {
   const DebtsScreen({super.key});
@@ -155,6 +156,13 @@ class _DebtsScreenState extends State<DebtsScreen> with SingleTickerProviderStat
       backgroundColor: const Color(0xFFF8FAFC),
       appBar: AppBar(
         title: const Text('Deudas & Calendario'),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.calculate_outlined, color: Color(0xFF10B981)),
+            tooltip: 'Calculadora de Divisas',
+            onPressed: () => CurrencyCalculatorDialog.show(context),
+          ),
+        ],
         bottom: TabBar(
           controller: _tabController,
           labelColor: const Color(0xFF10B981),

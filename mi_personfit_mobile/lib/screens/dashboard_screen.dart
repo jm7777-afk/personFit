@@ -2,10 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../services/api_service.dart';
 import '../models/dashboard_model.dart';
+import '../models/exchange_rate_model.dart';
 import '../widgets/metric_card.dart';
 import '../widgets/health_score_gauge.dart';
 import '../widgets/budget_progress_bar.dart';
 import '../widgets/custom_dialogs.dart';
+import '../widgets/exchange_rate_ticker.dart';
+import '../widgets/currency_calculator_dialog.dart';
 
 class DashboardScreen extends StatefulWidget {
   final VoidCallback onNavigateToDebts;
@@ -23,6 +26,7 @@ class DashboardScreen extends StatefulWidget {
 
 class _DashboardScreenState extends State<DashboardScreen> {
   DashboardModel? dashboard;
+  ExchangeRatesSummaryModel? exchangeRates;
   bool isLoading = true;
   String? error;
 
@@ -40,7 +44,17 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
     try {
       final data = await ApiService().getDashboard();
-      if (mounted) setState(() => dashboard = data);
+      ExchangeRatesSummaryModel? rates;
+      try {
+        rates = await ApiService().getExchangeRates();
+      } catch (_) {}
+
+      if (mounted) {
+        setState(() {
+          dashboard = data;
+          exchangeRates = rates;
+        });
+      }
     } catch (e) {
       if (mounted) setState(() => error = e.toString().replaceAll('Exception: ', ''));
     } finally {
@@ -70,6 +84,11 @@ class _DashboardScreenState extends State<DashboardScreen> {
           ],
         ),
         actions: [
+          IconButton(
+            icon: const Icon(Icons.calculate_outlined, color: Color(0xFF10B981)),
+            tooltip: 'Calculadora de Divisas',
+            onPressed: () => CurrencyCalculatorDialog.show(context, rates: exchangeRates),
+          ),
           IconButton(
             icon: const Icon(Icons.refresh),
             onPressed: _loadDashboard,
@@ -229,6 +248,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
                             ],
                           ),
                         ),
+                        const SizedBox(height: 20),
+
+                        // Ticker de Tasas de Cambio en Venezuela (BCV & Paralelo)
+                        ExchangeRateTicker(rates: exchangeRates),
                         const SizedBox(height: 20),
 
                         // Radar de Alertas / Vencimientos Urgentes

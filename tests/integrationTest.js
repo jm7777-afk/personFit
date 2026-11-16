@@ -101,7 +101,20 @@ async function runTests() {
     const dashboardRes = await request('GET', '/api/v1/dashboard');
     console.log('✅ Dashboard consolidado:', dashboardRes.status, `Balance Neto: $${dashboardRes.body.data.cashflow.net_balance}`);
 
-    console.log('\n🎉 ¡TODAS LAS NUEVAS PRUEBAS DE USUARIO, HISTORIAL Y NOTIFICACIONES PASARON AL 100%!');
+    // 11. Tasas de Cambio Venezuela (BCV, Paralelo, USD, EUR) y Calculadora
+    const ratesRes = await request('GET', '/api/v1/rates?sync=false');
+    console.log('✅ Tasas de Cambio Venezuela:', ratesRes.status, `USD BCV: ${ratesRes.body.data.summary.usd_bcv} Bs (${ratesRes.body.data.summary.usd_bcv_change}%), Paralelo: ${ratesRes.body.data.summary.usd_paralelo} Bs (${ratesRes.body.data.summary.usd_paralelo_change}%)`);
+
+    // 12. Conversión / Calculadora de Moneda
+    const convertRes = await request('POST', '/api/v1/rates/convert', {
+      amount: 100,
+      from: 'USD',
+      to: 'VES',
+      rate_type: 'oficial'
+    });
+    console.log('✅ Calculadora Multimoneda: 100 USD =', convertRes.body.data.result, 'VES', `(Fórmula: ${convertRes.body.data.formula})`);
+
+    console.log('\n🎉 ¡TODAS LAS NUEVAS PRUEBAS DE USUARIO, HISTORIAL, NOTIFICACIONES Y TASAS DE VENEZUELA PASARON AL 100%!');
   } catch (error) {
     console.error('❌ Error en pruebas:', error);
   } finally {

@@ -3,6 +3,7 @@ import 'package:intl/intl.dart';
 import '../services/api_service.dart';
 import '../models/expense_model.dart';
 import '../widgets/custom_dialogs.dart';
+import '../widgets/currency_calculator_dialog.dart';
 
 class ExpensesScreen extends StatefulWidget {
   const ExpensesScreen({super.key});
@@ -63,6 +64,13 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
       backgroundColor: const Color(0xFFF8FAFC),
       appBar: AppBar(
         title: const Text('Compras & Servicios'),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.calculate_outlined, color: Color(0xFF10B981)),
+            tooltip: 'Calculadora de Divisas',
+            onPressed: () => CurrencyCalculatorDialog.show(context),
+          ),
+        ],
       ),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () {

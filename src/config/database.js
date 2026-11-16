@@ -124,6 +124,18 @@ export const initDatabase = () => {
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
       FOREIGN KEY (goal_id) REFERENCES savings_goals(id) ON DELETE CASCADE
     );
+
+    -- Tasas de Cambio Venezuela (BCV, Paralelo, USD, EUR)
+    CREATE TABLE IF NOT EXISTS exchange_rates (
+      id TEXT PRIMARY KEY, -- 'usd_oficial', 'usd_paralelo', 'eur_oficial', 'eur_paralelo'
+      currency TEXT NOT NULL, -- 'USD', 'EUR'
+      provider TEXT NOT NULL, -- 'oficial', 'paralelo'
+      name TEXT NOT NULL,
+      rate REAL NOT NULL,
+      previous_rate REAL NOT NULL,
+      change_percent REAL NOT NULL DEFAULT 0,
+      last_updated TEXT NOT NULL
+    );
   `;
 
   db.exec(schema);
@@ -143,6 +155,28 @@ export const initDatabase = () => {
   addColumnIfNotExists('categories', 'user_id', 'INTEGER REFERENCES users(id) ON DELETE CASCADE');
   addColumnIfNotExists('expenses', 'user_id', 'INTEGER REFERENCES users(id) ON DELETE CASCADE');
   addColumnIfNotExists('savings_goals', 'user_id', 'INTEGER REFERENCES users(id) ON DELETE CASCADE');
+
+  // Semilla de tasas de cambio predeterminadas
+  const ratesCount = db.prepare('SELECT COUNT(*) as count FROM exchange_rates').get().count;
+  if (ratesCount === 0) {
+    const defaultRates = [
+      { id: 'usd_oficial', currency: 'USD', provider: 'oficial', name: 'Dólar BCV Oficial', rate: 914.02, previous_rate: 911.20, change_percent: 0.31, last_updated: new Date().toISOString() },
+      { id: 'usd_paralelo', currency: 'USD', provider: 'paralelo', name: 'Dólar Paralelo / Monitor', rate: 1045.50, previous_rate: 1032.00, change_percent: 1.31, last_updated: new Date().toISOString() },
+      { id: 'eur_oficial', currency: 'EUR', provider: 'oficial', name: 'Euro BCV Oficial', rate: 1010.56, previous_rate: 1005.10, change_percent: 0.54, last_updated: new Date().toISOString() },
+      { id: 'eur_paralelo', currency: 'EUR', provider: 'paralelo', name: 'Euro Paralelo', rate: 1120.00, previous_rate: 1110.00, change_percent: 0.90, last_updated: new Date().toISOString() }
+    ];
+
+    const insertRate = db.prepare(`
+      INSERT INTO exchange_rates (id, currency, provider, name, rate, previous_rate, change_percent, last_updated)
+      VALUES (@id, @currency, @provider, @name, @rate, @previous_rate, @change_percent, @last_updated)
+    `);
+
+    const insertAllRates = db.transaction((rates) => {
+      for (const r of rates) insertRate.run(r);
+    });
+
+    insertAllRates(defaultRates);
+  }
 
   // Semilla de categorías predeterminadas
   const count = db.prepare('SELECT COUNT(*) as count FROM categories WHERE user_id IS NULL').get().count;

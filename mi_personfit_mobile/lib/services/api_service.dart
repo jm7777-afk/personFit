@@ -8,6 +8,7 @@ import '../models/expense_model.dart';
 import '../models/income_model.dart';
 import '../models/savings_model.dart';
 import '../models/notification_model.dart';
+import '../models/exchange_rate_model.dart';
 
 class ApiService {
   static final ApiService _instance = ApiService._internal();
@@ -315,6 +316,47 @@ class ApiService {
           .toList();
     } else {
       throw Exception(data['message'] ?? 'Error al cargar notificaciones');
+    }
+  }
+
+  // --- TASAS DE CAMBIO VENEZUELA & CALCULADORA ---
+
+  Future<ExchangeRatesSummaryModel> getExchangeRates() async {
+    final response = await http.get(
+      Uri.parse('${ApiConfig.baseUrl}/rates'),
+      headers: _headers,
+    );
+    final data = jsonDecode(response.body);
+
+    if (response.statusCode == 200) {
+      return ExchangeRatesSummaryModel.fromJson(data['data']);
+    } else {
+      throw Exception(data['message'] ?? 'Error al cargar tasas de cambio');
+    }
+  }
+
+  Future<ConversionResultModel> convertCurrency({
+    required double amount,
+    required String from,
+    required String to,
+    String rateType = 'oficial',
+  }) async {
+    final response = await http.post(
+      Uri.parse('${ApiConfig.baseUrl}/rates/convert'),
+      headers: _headers,
+      body: jsonEncode({
+        'amount': amount,
+        'from': from,
+        'to': to,
+        'rate_type': rateType,
+      }),
+    );
+    final data = jsonDecode(response.body);
+
+    if (response.statusCode == 200) {
+      return ConversionResultModel.fromJson(data['data']);
+    } else {
+      throw Exception(data['message'] ?? 'Error al convertir moneda');
     }
   }
 }
