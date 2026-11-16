@@ -8,6 +8,7 @@ const router = Router();
 // Rutas especiales (antes de /:id para evitar colisiones)
 router.get('/upcoming', debtController.getUpcoming);
 router.get('/strategies', debtController.getStrategies);
+router.get('/history/paid', debtController.getPaidHistory);
 
 router.route('/')
   .get(debtController.getAll)

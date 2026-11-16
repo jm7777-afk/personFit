@@ -2,57 +2,56 @@ import { debtRepository } from '../repositories/debtRepository.js';
 import { NotFoundError, BadRequestError } from '../utils/errors.js';
 
 export class DebtService {
-  getAllDebts(status) {
-    return debtRepository.findAll(status);
+  getAllDebts(status, userId = null) {
+    return debtRepository.findAll(status, userId);
   }
 
-  getDebtById(id) {
-    const debt = debtRepository.findById(id);
+  getDebtById(id, userId = null) {
+    const debt = debtRepository.findById(id, userId);
     if (!debt) {
       throw new NotFoundError(`Deuda con id ${id} no encontrada`);
     }
     return debt;
   }
 
-  createDebt(data) {
-    return debtRepository.create(data);
+  createDebt(data, userId = null) {
+    return debtRepository.create(data, userId);
   }
 
-  updateDebt(id, data) {
-    this.getDebtById(id);
-    return debtRepository.update(id, data);
+  updateDebt(id, data, userId = null) {
+    this.getDebtById(id, userId);
+    return debtRepository.update(id, data, userId);
   }
 
-  deleteDebt(id) {
-    this.getDebtById(id);
-    return debtRepository.delete(id);
+  deleteDebt(id, userId = null) {
+    this.getDebtById(id, userId);
+    return debtRepository.delete(id, userId);
   }
 
-  getUpcomingDebts(days) {
+  getUpcomingDebts(days, userId = null) {
     const d = days ? Number(days) : 15;
-    return debtRepository.findUpcoming(d);
+    return debtRepository.findUpcoming(d, userId);
   }
 
-  recordPayment(debtId, paymentData) {
-    const debt = this.getDebtById(debtId);
+  getPaidHistory(userId = null) {
+    return debtRepository.findPaidHistory(userId);
+  }
+
+  recordPayment(debtId, paymentData, userId = null) {
+    const debt = this.getDebtById(debtId, userId);
     if (debt.status === 'pagada') {
       throw new BadRequestError('Esta deuda ya está completamente pagada');
     }
-    return debtRepository.recordPayment(debtId, paymentData);
+    return debtRepository.recordPayment(debtId, paymentData, userId);
   }
 
-  getPayments(debtId) {
-    this.getDebtById(debtId);
+  getPayments(debtId, userId = null) {
+    this.getDebtById(debtId, userId);
     return debtRepository.getPayments(debtId);
   }
 
-  /**
-   * Genera recomendaciones de liquidación:
-   * 1. Método Avalancha (Prioriza mayor tasa de interés: ahorra más dinero).
-   * 2. Método Bola de Nieve (Prioriza menor saldo pendiente: victorias rápidas).
-   */
-  getPayoffStrategies() {
-    const activeDebts = debtRepository.findAll('activa');
+  getPayoffStrategies(userId = null) {
+    const activeDebts = debtRepository.findAll('activa', userId);
     const totalBalance = activeDebts.reduce((acc, d) => acc + d.current_balance, 0);
     const totalMonthlyCommitment = activeDebts.reduce((acc, d) => acc + d.monthly_payment, 0);
 

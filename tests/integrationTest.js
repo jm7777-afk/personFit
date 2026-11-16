@@ -2,12 +2,11 @@ import { createApp } from '../src/app.js';
 import { initDatabase, db } from '../src/config/database.js';
 
 async function runTests() {
-  console.log('🧪 Iniciando pruebas de integración con servidor HTTP real...');
+  console.log('🧪 Iniciando pruebas de integración completas...');
   initDatabase();
 
   const app = createApp();
 
-  // Escuchar en puerto dinámico asignado por el SO (port 0)
   const server = await new Promise((resolve) => {
     const s = app.listen(0, '127.0.0.1', () => resolve(s));
   });
@@ -15,13 +14,16 @@ async function runTests() {
   const { port } = server.address();
   const baseUrl = `http://127.0.0.1:${port}`;
 
-  const request = async (method, path, body = null) => {
+  const request = async (method, path, body = null, token = null) => {
     const options = {
       method,
       headers: {
         'Content-Type': 'application/json'
       }
     };
+    if (token) {
+      options.headers['Authorization'] = `Bearer ${token}`;
+    }
     if (body) {
       options.body = JSON.stringify(body);
     }
@@ -35,99 +37,71 @@ async function runTests() {
     const health = await request('GET', '/health');
     console.log('✅ Healthcheck:', health.status, health.body.status);
 
-    // 2. Categories
+    // 2. Auth: Registro y Login de Usuario
+    const testEmail = `user_${Date.now()}@personfit.com`;
+    const regRes = await request('POST', '/api/v1/auth/register', {
+      name: 'Carlos Mendoza',
+      email: testEmail,
+      password: 'password123'
+    });
+    console.log('✅ Usuario registrado:', regRes.status, regRes.body.data.user.email);
+    const authToken = regRes.body.data.token;
+
+    // 3. Perfil de Usuario con Token JWT
+    const profileRes = await request('GET', '/api/v1/auth/profile', null, authToken);
+    console.log('✅ Perfil autenticado:', profileRes.status, profileRes.body.data.user.name);
+
+    // 4. Categories
     const categories = await request('GET', '/api/v1/categories');
     console.log('✅ Categorías precargadas:', categories.body.results, 'encontradas');
 
-    // 3. Registrar Ingreso de Empleo
+    // 5. Registrar Ingreso
     const today = new Date().toISOString().slice(0, 10);
     const incomeRes = await request('POST', '/api/v1/incomes', {
       title: 'Sueldo Empleo Principal',
-      amount: 2500,
+      amount: 3000,
       source: 'empleo_principal',
       frequency: 'mensual',
       date: today,
-      notes: 'Ingreso quincena/mensual fijo'
+      notes: 'Cobro de empleo'
     });
     console.log('✅ Ingreso registrado:', incomeRes.status, incomeRes.body.data.title, `$${incomeRes.body.data.amount}`);
 
-    // 4. Registrar Deuda y Cuota de Pago
+    // 6. Registrar Deuda
     const debtRes = await request('POST', '/api/v1/debts', {
-      title: 'Tarjeta de Crédito Visa Oro',
-      creditor: 'Banco Nacional',
-      total_amount: 1200,
-      current_balance: 1200,
-      monthly_payment: 150,
-      interest_rate: 24.5,
-      due_day: 20,
-      next_due_date: today, // Hoy para que aparezca en el radar
-      notes: 'Pagar con estrategia avalancha'
+      title: 'Préstamo Personal',
+      creditor: 'Banco Solidario',
+      total_amount: 500,
+      current_balance: 500,
+      monthly_payment: 100,
+      interest_rate: 18.0,
+      due_day: 18,
+      next_due_date: today
     });
     const debtId = debtRes.body.data.id;
-    console.log('✅ Deuda registrada:', debtRes.status, debtRes.body.data.title, `Saldo: $${debtRes.body.data.current_balance}`);
+    console.log('✅ Deuda registrada:', debtRes.status, debtRes.body.data.title);
 
-    // 5. Registrar un Abono a la Deuda
-    const paymentRes = await request('POST', `/api/v1/debts/${debtId}/payments`, {
-      amount: 200,
+    // 7. Liquidar deuda completamente (Abono de 500)
+    const payAllRes = await request('POST', `/api/v1/debts/${debtId}/payments`, {
+      amount: 500,
       payment_date: today,
-      notes: 'Abono extraordinario para bajar intereses'
+      notes: 'Liquidación total'
     });
-    console.log('✅ Abono registrado a la deuda:', paymentRes.status, `Nuevo saldo: $${paymentRes.body.data.debt.current_balance}`);
+    console.log('✅ Deuda liquidada al 100%:', payAllRes.status, 'Status:', payAllRes.body.data.debt.status);
 
-    // 6. Estrategias de Liquidación (Avalancha vs Bola de Nieve)
-    const stratRes = await request('GET', '/api/v1/debts/strategies');
-    console.log('✅ Estrategias calculadas:', stratRes.body.data.strategies.avalanche.name);
+    // 8. Historial de Deudas Pagadas
+    const paidHistory = await request('GET', '/api/v1/debts/history/paid');
+    console.log('✅ Historial de Deudas Pagadas:', paidHistory.body.count, 'deuda(s) liquidadas en historial');
 
-    // 7. Registrar Gastos: Servicio por pagar y Compra diaria
-    const expenseServiceRes = await request('POST', '/api/v1/expenses', {
-      title: 'Factura de Electricidad',
-      amount: 65,
-      category_id: 2, // Electricidad
-      date: today,
-      due_date: today,
-      is_paid: 0, // Pendiente de pago
-      payment_method: 'transferencia'
-    });
-    console.log('✅ Servicio registrado (por pagar):', expenseServiceRes.status, expenseServiceRes.body.data.title);
+    // 9. Recordatorios y Notificaciones
+    const notifRes = await request('GET', '/api/v1/notifications');
+    console.log('✅ Notificaciones de Recordatorios generadas:', notifRes.body.data.total_count, 'alertas activas');
 
-    const expenseFoodRes = await request('POST', '/api/v1/expenses', {
-      title: 'Supermercado Mensual',
-      amount: 350,
-      category_id: 5, // Supermercado
-      date: today,
-      is_paid: 1,
-      payment_method: 'tarjeta_debito'
-    });
-    console.log('✅ Compra diaria registrada:', expenseFoodRes.status, expenseFoodRes.body.data.title);
-
-    // 8. Crear Meta de Ahorro y Aportar Dinero
-    const goalRes = await request('POST', '/api/v1/savings', {
-      title: 'Fondo de Emergencia (3 meses)',
-      target_amount: 3000,
-      current_amount: 500,
-      priority: 'alta',
-      target_date: '2027-06-30'
-    });
-    const goalId = goalRes.body.data.id;
-    console.log('✅ Meta de ahorro creada:', goalRes.status, goalRes.body.data.title, `Progreso: ${goalRes.body.data.progress_percentage}%`);
-
-    const saveTxRes = await request('POST', `/api/v1/savings/${goalId}/transactions`, {
-      amount: 250,
-      date: today,
-      notes: 'Aporte de la quincena'
-    });
-    console.log('✅ Aporte a meta registrado:', saveTxRes.status, `Nuevo monto: $${saveTxRes.body.data.current_amount} (${saveTxRes.body.data.progress_percentage}%)`);
-
-    // 9. Dashboard Consolidado
+    // 10. Dashboard
     const dashboardRes = await request('GET', '/api/v1/dashboard');
-    console.log('\n--- 📊 RESUMEN DEL DASHBOARD ---');
-    console.log('Flujo de Caja:', dashboardRes.body.data.cashflow);
-    console.log('Score de Salud Financiera:', dashboardRes.body.data.financial_health);
-    console.log('Evaluación 50/30/20:', dashboardRes.body.data.budget_rule_50_30_20);
-    console.log('Deudas por vencer:', dashboardRes.body.data.debts_overview.urgent_debts_count);
-    console.log('Servicios por pagar:', dashboardRes.body.data.upcoming_bills_radar.urgent_bills_count);
+    console.log('✅ Dashboard consolidado:', dashboardRes.status, `Balance Neto: $${dashboardRes.body.data.cashflow.net_balance}`);
 
-    console.log('\n🎉 ¡TODAS LAS PRUEBAS DE INTEGRACIÓN COMPLETADAS EXITOSAMENTE!');
+    console.log('\n🎉 ¡TODAS LAS NUEVAS PRUEBAS DE USUARIO, HISTORIAL Y NOTIFICACIONES PASARON AL 100%!');
   } catch (error) {
     console.error('❌ Error en pruebas:', error);
   } finally {

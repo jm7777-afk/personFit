@@ -1,30 +1,43 @@
 import { db } from '../config/database.js';
 
 export class DebtRepository {
-  findAll(status = null) {
-    let sql = 'SELECT * FROM debts';
+  findAll(status = null, userId = null) {
+    let sql = 'SELECT * FROM debts WHERE 1=1';
     const params = [];
+
+    if (userId) {
+      sql += ' AND user_id = ?';
+      params.push(userId);
+    }
+
     if (status) {
-      sql += ' WHERE status = ?';
+      sql += ' AND status = ?';
       params.push(status);
     }
+
     sql += ' ORDER BY next_due_date ASC';
     return db.prepare(sql).all(...params);
   }
 
-  findById(id) {
-    return db.prepare('SELECT * FROM debts WHERE id = ?').get(id);
+  findById(id, userId = null) {
+    let sql = 'SELECT * FROM debts WHERE id = ?';
+    const params = [id];
+    if (userId) {
+      sql += ' AND user_id = ?';
+      params.push(userId);
+    }
+    return db.prepare(sql).get(...params);
   }
 
-  create(data) {
+  create(data, userId = null) {
     const currentBalance = data.current_balance !== undefined ? data.current_balance : data.total_amount;
     const stmt = db.prepare(`
       INSERT INTO debts (
         title, creditor, total_amount, current_balance, monthly_payment,
-        interest_rate, due_day, next_due_date, status, notes
+        interest_rate, due_day, next_due_date, status, notes, user_id
       ) VALUES (
         @title, @creditor, @total_amount, @current_balance, @monthly_payment,
-        @interest_rate, @due_day, @next_due_date, @status, @notes
+        @interest_rate, @due_day, @next_due_date, @status, @notes, @user_id
       )
     `);
 
@@ -38,14 +51,15 @@ export class DebtRepository {
       due_day: data.due_day,
       next_due_date: data.next_due_date,
       status: data.status || 'activa',
-      notes: data.notes || null
+      notes: data.notes || null,
+      user_id: userId
     });
 
     return this.findById(result.lastInsertRowid);
   }
 
-  update(id, data) {
-    const current = this.findById(id);
+  update(id, data, userId = null) {
+    const current = this.findById(id, userId);
     if (!current) return null;
 
     const merged = { ...current, ...data };
@@ -75,27 +89,37 @@ export class DebtRepository {
     return this.findById(id);
   }
 
-  delete(id) {
-    const stmt = db.prepare('DELETE FROM debts WHERE id = ?');
-    const result = stmt.run(id);
+  delete(id, userId = null) {
+    let sql = 'DELETE FROM debts WHERE id = ?';
+    const params = [id];
+    if (userId) {
+      sql += ' AND user_id = ?';
+      params.push(userId);
+    }
+    const result = db.prepare(sql).run(...params);
     return result.changes > 0;
   }
 
-  findUpcoming(days = 15) {
-    const stmt = db.prepare(`
+  findUpcoming(days = 15, userId = null) {
+    let sql = `
       SELECT *,
         CAST(julianday(next_due_date) - julianday('now') AS INTEGER) AS days_remaining
       FROM debts
       WHERE status = 'activa'
         AND date(next_due_date) <= date('now', '+' || ? || ' days')
-      ORDER BY next_due_date ASC
-    `);
-    return stmt.all(days);
+    `;
+    const params = [days];
+    if (userId) {
+      sql += ' AND user_id = ?';
+      params.push(userId);
+    }
+    sql += ' ORDER BY next_due_date ASC';
+    return db.prepare(sql).all(...params);
   }
 
-  recordPayment(debtId, paymentData) {
+  recordPayment(debtId, paymentData, userId = null) {
     const recordPaymentTx = db.transaction(() => {
-      const debt = this.findById(debtId);
+      const debt = this.findById(debtId, userId);
       if (!debt) return null;
 
       // 1. Insertar el abono
@@ -112,22 +136,24 @@ export class DebtRepository {
 
       // 2. Actualizar el saldo de la deuda
       const newBalance = Math.max(0, debt.current_balance - paymentData.amount);
-      const newStatus = newBalance === 0 ? 'pagada' : debt.status;
+      const isPaidNow = newBalance === 0;
+      const newStatus = isPaidNow ? 'pagada' : debt.status;
+      const paidAt = isPaidNow ? new Date().toISOString() : debt.paid_at;
 
       // Avanzar fecha de vencimiento al siguiente mes si se cubrió al menos la cuota
       let nextDate = debt.next_due_date;
       if (paymentData.amount >= debt.monthly_payment && newBalance > 0) {
         const [year, month, day] = debt.next_due_date.split('-').map(Number);
-        const d = new Date(year, month, day); // mes ya está 1-indexed en Date si pasamos month
+        const d = new Date(year, month, day);
         nextDate = d.toISOString().split('T')[0];
       }
 
       const stmtUpdate = db.prepare(`
         UPDATE debts
-        SET current_balance = ?, status = ?, next_due_date = ?
+        SET current_balance = ?, status = ?, next_due_date = ?, paid_at = ?
         WHERE id = ?
       `);
-      stmtUpdate.run(newBalance, newStatus, nextDate, debtId);
+      stmtUpdate.run(newBalance, newStatus, nextDate, paidAt, debtId);
 
       return {
         debt: this.findById(debtId),
@@ -151,12 +177,36 @@ export class DebtRepository {
     `).all(debtId);
   }
 
-  getTotalOutstandingDebt() {
-    const row = db.prepare(`
+  findPaidHistory(userId = null) {
+    let sql = `
+      SELECT d.*,
+        COUNT(dp.id) as payments_count,
+        COALESCE(SUM(dp.amount), 0) as total_repaid
+      FROM debts d
+      LEFT JOIN debt_payments dp ON d.id = dp.debt_id
+      WHERE d.status = 'pagada'
+    `;
+    const params = [];
+    if (userId) {
+      sql += ' AND d.user_id = ?';
+      params.push(userId);
+    }
+    sql += ' GROUP BY d.id ORDER BY d.paid_at DESC, d.created_at DESC';
+    return db.prepare(sql).all(...params);
+  }
+
+  getTotalOutstandingDebt(userId = null) {
+    let sql = `
       SELECT COALESCE(SUM(current_balance), 0) as total
       FROM debts
       WHERE status = 'activa'
-    `).get();
+    `;
+    const params = [];
+    if (userId) {
+      sql += ' AND user_id = ?';
+      params.push(userId);
+    }
+    const row = db.prepare(sql).get(...params);
     return row ? row.total : 0;
   }
 }

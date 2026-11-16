@@ -12,27 +12,39 @@ if (!fs.existsSync(dbDir)) {
 
 export const db = new Database(dbPath);
 
-// Habilitar Foreign Keys y modo WAL para alta concurrencia y velocidad
 db.pragma('journal_mode = WAL');
 db.pragma('foreign_keys = ON');
 
 export const initDatabase = () => {
   const schema = `
+    -- Usuarios
+    CREATE TABLE IF NOT EXISTS users (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      name TEXT NOT NULL,
+      email TEXT NOT NULL UNIQUE,
+      password_hash TEXT NOT NULL,
+      avatar TEXT,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    );
+
     -- Ingresos
     CREATE TABLE IF NOT EXISTS incomes (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_id INTEGER,
       title TEXT NOT NULL,
       amount REAL NOT NULL,
       source TEXT NOT NULL,
       frequency TEXT NOT NULL DEFAULT 'mensual',
       date TEXT NOT NULL,
       notes TEXT,
-      created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
     );
 
     -- Deudas y Pasivos
     CREATE TABLE IF NOT EXISTS debts (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_id INTEGER,
       title TEXT NOT NULL,
       creditor TEXT NOT NULL,
       total_amount REAL NOT NULL,
@@ -41,9 +53,11 @@ export const initDatabase = () => {
       interest_rate REAL DEFAULT 0,
       due_day INTEGER NOT NULL,
       next_due_date TEXT NOT NULL,
-      status TEXT DEFAULT 'activa',
+      status TEXT DEFAULT 'activa', -- 'activa', 'pagada', 'refinanciada'
+      paid_at DATETIME, -- Fecha en que se liquidó completamente
       notes TEXT,
-      created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
     );
 
     -- Historial de pagos de deudas
@@ -60,16 +74,19 @@ export const initDatabase = () => {
     -- Categorías de gastos y servicios
     CREATE TABLE IF NOT EXISTS categories (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
-      name TEXT NOT NULL UNIQUE,
+      user_id INTEGER, -- NULL para categorías globales predeterminadas
+      name TEXT NOT NULL,
       type TEXT NOT NULL, -- 'servicio', 'compra', 'obligatorio', 'deseo'
       icon TEXT,
       monthly_budget REAL DEFAULT 0,
-      created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
     );
 
     -- Gastos y Servicios (Compras diarias o facturas fijas)
     CREATE TABLE IF NOT EXISTS expenses (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_id INTEGER,
       title TEXT NOT NULL,
       amount REAL NOT NULL,
       category_id INTEGER NOT NULL,
@@ -79,19 +96,22 @@ export const initDatabase = () => {
       payment_method TEXT DEFAULT 'efectivo',
       notes TEXT,
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
       FOREIGN KEY (category_id) REFERENCES categories(id) ON DELETE RESTRICT
     );
 
     -- Metas de Ahorro
     CREATE TABLE IF NOT EXISTS savings_goals (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_id INTEGER,
       title TEXT NOT NULL,
       target_amount REAL NOT NULL,
       current_amount REAL DEFAULT 0,
       target_date TEXT,
       priority TEXT DEFAULT 'media', -- 'alta', 'media', 'baja'
       notes TEXT,
-      created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
     );
 
     -- Aportes / Retiros de Ahorro
@@ -108,8 +128,24 @@ export const initDatabase = () => {
 
   db.exec(schema);
 
-  // Semilla de categorías predeterminadas si la tabla está vacía
-  const count = db.prepare('SELECT COUNT(*) as count FROM categories').get().count;
+  // Migraciones seguras para bases de datos existentes: agregar columnas si no existen
+  const addColumnIfNotExists = (tableName, columnName, columnDef) => {
+    const columns = db.pragma(`table_info(${tableName})`);
+    const exists = columns.some(c => c.name === columnName);
+    if (!exists) {
+      db.exec(`ALTER TABLE ${tableName} ADD COLUMN ${columnName} ${columnDef}`);
+    }
+  };
+
+  addColumnIfNotExists('incomes', 'user_id', 'INTEGER REFERENCES users(id) ON DELETE CASCADE');
+  addColumnIfNotExists('debts', 'user_id', 'INTEGER REFERENCES users(id) ON DELETE CASCADE');
+  addColumnIfNotExists('debts', 'paid_at', 'DATETIME');
+  addColumnIfNotExists('categories', 'user_id', 'INTEGER REFERENCES users(id) ON DELETE CASCADE');
+  addColumnIfNotExists('expenses', 'user_id', 'INTEGER REFERENCES users(id) ON DELETE CASCADE');
+  addColumnIfNotExists('savings_goals', 'user_id', 'INTEGER REFERENCES users(id) ON DELETE CASCADE');
+
+  // Semilla de categorías predeterminadas
+  const count = db.prepare('SELECT COUNT(*) as count FROM categories WHERE user_id IS NULL').get().count;
   if (count === 0) {
     const defaultCategories = [
       { name: 'Vivienda y Alquiler', type: 'obligatorio', icon: 'home', monthly_budget: 0 },
@@ -126,8 +162,8 @@ export const initDatabase = () => {
     ];
 
     const insertCat = db.prepare(`
-      INSERT INTO categories (name, type, icon, monthly_budget)
-      VALUES (@name, @type, @icon, @monthly_budget)
+      INSERT INTO categories (name, type, icon, monthly_budget, user_id)
+      VALUES (@name, @type, @icon, @monthly_budget, NULL)
     `);
 
     const insertMany = db.transaction((cats) => {
