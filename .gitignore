@@ -22,3 +22,12 @@ npm-debug.log*
 Thumbs.db
 .vscode/
 .idea/
+
+# Flutter artifacts
+mi_personfit_mobile/.dart_tool/
+mi_personfit_mobile/build/
+mi_personfit_mobile/.flutter-plugins
+mi_personfit_mobile/.flutter-plugins-dependencies
+mi_personfit_mobile/.packages
+mi_personfit_mobile/.pub-cache/
+mi_personfit_mobile/.pub/
