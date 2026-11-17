@@ -70,24 +70,36 @@ class _AuthScreenState extends State<AuthScreen> {
               children: [
                 // Logo & Branding
                 Container(
-                  width: 76,
-                  height: 76,
+                  width: 84,
+                  height: 84,
                   decoration: BoxDecoration(
-                    gradient: const LinearGradient(
-                      colors: [Color(0xFF10B981), Color(0xFF059669)],
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
-                    ),
-                    borderRadius: BorderRadius.circular(22),
+                    borderRadius: BorderRadius.circular(24),
                     boxShadow: [
                       BoxShadow(
-                        color: const Color(0xFF10B981).withOpacity(0.3),
+                        color: Colors.black.withOpacity(0.08),
                         blurRadius: 16,
                         offset: const Offset(0, 8),
                       ),
                     ],
                   ),
-                  child: const Icon(Icons.account_balance_wallet_rounded, size: 40, color: Colors.white),
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(24),
+                    child: Image.asset(
+                      'assets/images/app_logo.jpeg',
+                      fit: BoxFit.cover,
+                      errorBuilder: (_, __, ___) => Container(
+                        decoration: BoxDecoration(
+                          gradient: const LinearGradient(
+                            colors: [Color(0xFF10B981), Color(0xFF059669)],
+                            begin: Alignment.topLeft,
+                            end: Alignment.bottomRight,
+                          ),
+                          borderRadius: BorderRadius.circular(24),
+                        ),
+                        child: const Icon(Icons.account_balance_wallet_rounded, size: 40, color: Colors.white),
+                      ),
+                    ),
+                  ),
                 ),
                 const SizedBox(height: 18),
                 const Text(

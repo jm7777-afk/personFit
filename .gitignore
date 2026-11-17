@@ -31,3 +31,7 @@ mi_personfit_mobile/.flutter-plugins-dependencies
 mi_personfit_mobile/.packages
 mi_personfit_mobile/.pub-cache/
 mi_personfit_mobile/.pub/
+
+# Android binaries
+*.apk
+*.aab
