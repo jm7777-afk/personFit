@@ -499,11 +499,28 @@ class ApiService {
 
   // --- SUPERMERCADOS, PRODUCTOS & LISTAS DE COMPRAS ---
 
-  Future<List<Supermarket>> getSupermarkets() async {
+  Future<LocationsData> getSupermarketLocations() async {
     final response = await http.get(
-      Uri.parse('${ApiConfig.baseUrl}/groceries/supermarkets'),
+      Uri.parse('${ApiConfig.baseUrl}/groceries/locations'),
       headers: _headers,
     );
+    final data = jsonDecode(response.body);
+    if (response.statusCode == 200) {
+      return LocationsData.fromJson(data['data']);
+    } else {
+      throw Exception(data['message'] ?? 'Error al cargar ubicaciones');
+    }
+  }
+
+  Future<List<Supermarket>> getSupermarkets({String? state, String? municipality, String? search}) async {
+    final params = <String, String>{};
+    if (state != null && state.isNotEmpty) params['state'] = state;
+    if (municipality != null && municipality.isNotEmpty && municipality != 'Todos') params['municipality'] = municipality;
+    if (search != null && search.isNotEmpty) params['search'] = search;
+
+    final uri = Uri.parse('${ApiConfig.baseUrl}/groceries/supermarkets')
+        .replace(queryParameters: params.isNotEmpty ? params : null);
+    final response = await http.get(uri, headers: _headers);
     final data = jsonDecode(response.body);
     if (response.statusCode == 200) {
       return (data['data'] as List).map((e) => Supermarket.fromJson(e)).toList();
@@ -525,11 +542,14 @@ class ApiService {
     }
   }
 
-  Future<List<ProductComparisonItem>> getCompareProducts() async {
-    final response = await http.get(
-      Uri.parse('${ApiConfig.baseUrl}/groceries/compare-products'),
-      headers: _headers,
-    );
+  Future<List<ProductComparisonItem>> getCompareProducts({String? state, String? municipality}) async {
+    final params = <String, String>{};
+    if (state != null && state.isNotEmpty) params['state'] = state;
+    if (municipality != null && municipality.isNotEmpty && municipality != 'Todos') params['municipality'] = municipality;
+
+    final uri = Uri.parse('${ApiConfig.baseUrl}/groceries/compare-products')
+        .replace(queryParameters: params.isNotEmpty ? params : null);
+    final response = await http.get(uri, headers: _headers);
     final data = jsonDecode(response.body);
     if (response.statusCode == 200) {
       return (data['data'] as List).map((e) => ProductComparisonItem.fromJson(e)).toList();
@@ -538,11 +558,14 @@ class ApiService {
     }
   }
 
-  Future<Map<String, dynamic>> getCompareSupermarkets() async {
-    final response = await http.get(
-      Uri.parse('${ApiConfig.baseUrl}/groceries/compare-supermarkets'),
-      headers: _headers,
-    );
+  Future<Map<String, dynamic>> getCompareSupermarkets({String? state, String? municipality}) async {
+    final params = <String, String>{};
+    if (state != null && state.isNotEmpty) params['state'] = state;
+    if (municipality != null && municipality.isNotEmpty && municipality != 'Todos') params['municipality'] = municipality;
+
+    final uri = Uri.parse('${ApiConfig.baseUrl}/groceries/compare-supermarkets')
+        .replace(queryParameters: params.isNotEmpty ? params : null);
+    final response = await http.get(uri, headers: _headers);
     final data = jsonDecode(response.body);
     if (response.statusCode == 200) {
       final rankings = (data['data']['rankings'] as List)
@@ -554,6 +577,7 @@ class ApiService {
       return {
         'rankings': rankings,
         'cheapest_supermarket': cheapest,
+        'filter': data['data']['filter'],
       };
     } else {
       throw Exception(data['message'] ?? 'Error al comparar supermercados');

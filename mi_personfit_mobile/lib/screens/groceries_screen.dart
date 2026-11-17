@@ -18,6 +18,15 @@ class _GroceriesScreenState extends State<GroceriesScreen> with SingleTickerProv
   bool _isLoading = true;
   bool _showInBs = false;
 
+  // Filtros de Ubicación (Venezuela / Carabobo)
+  String _selectedState = 'Carabobo';
+  String _selectedMunicipality = 'Todos';
+  LocationsData? _locationsData;
+
+  // Búsqueda en directorio
+  final TextEditingController _searchController = TextEditingController();
+  String _searchQuery = '';
+
   List<GroceryListModel> _lists = [];
   GroceryListModel? _activeList;
 
@@ -26,10 +35,23 @@ class _GroceriesScreenState extends State<GroceriesScreen> with SingleTickerProv
   List<Supermarket> _supermarkets = [];
   List<GroceryProduct> _allProducts = [];
 
+  final List<String> _caraboboQuickMunicipalities = [
+    'Todos',
+    'Valencia',
+    'Naguanagua',
+    'San Diego',
+    'Guacara',
+    'Los Guayos',
+    'Puerto Cabello'
+  ];
+
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 3, vsync: this);
+    _tabController = TabController(length: 4, vsync: this);
+    _tabController.addListener(() {
+      if (mounted) setState(() {});
+    });
     _showInBs = _apiService.showInBs;
     _loadAllData();
   }
@@ -37,25 +59,42 @@ class _GroceriesScreenState extends State<GroceriesScreen> with SingleTickerProv
   @override
   void dispose() {
     _tabController.dispose();
+    _searchController.dispose();
     super.dispose();
   }
 
   Future<void> _loadAllData() async {
     setState(() => _isLoading = true);
     try {
-      final supers = await _apiService.getSupermarkets();
+      final locs = await _apiService.getSupermarketLocations();
+      final supers = await _apiService.getSupermarkets(
+        state: _selectedState,
+        municipality: _selectedMunicipality,
+        search: _searchQuery.isNotEmpty ? _searchQuery : null,
+      );
       final prods = await _apiService.getGroceryProducts();
       final lists = await _apiService.getGroceryLists();
-      final prodComps = await _apiService.getCompareProducts();
-      final superComps = await _apiService.getCompareSupermarkets();
+      final prodComps = await _apiService.getCompareProducts(
+        state: _selectedState,
+        municipality: _selectedMunicipality,
+      );
+      final superComps = await _apiService.getCompareSupermarkets(
+        state: _selectedState,
+        municipality: _selectedMunicipality,
+      );
 
       GroceryListModel? active;
       if (lists.isNotEmpty) {
-        active = await _apiService.getGroceryListDetails(lists.first.id);
+        if (_activeList != null && lists.any((l) => l.id == _activeList!.id)) {
+          active = await _apiService.getGroceryListDetails(_activeList!.id);
+        } else {
+          active = await _apiService.getGroceryListDetails(lists.first.id);
+        }
       }
 
       if (mounted) {
         setState(() {
+          _locationsData = locs;
           _supermarkets = supers;
           _allProducts = prods;
           _lists = lists;
@@ -105,6 +144,216 @@ class _GroceriesScreenState extends State<GroceriesScreen> with SingleTickerProv
     } catch (_) {}
   }
 
+  void _showLocationSelectorDialog() {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
+      builder: (ctx) {
+        String tempState = _selectedState;
+        String tempMun = _selectedMunicipality;
+
+        return StatefulBuilder(
+          builder: (context, setModalState) {
+            final caraboboLoc = _locationsData?.states.firstWhere(
+              (s) => s.state.toLowerCase() == 'carabobo',
+              orElse: () => VenezuelaStateLocation(state: 'Carabobo', supermarketsCount: 17, municipalities: []),
+            );
+
+            return Padding(
+              padding: EdgeInsets.only(
+                left: 20,
+                right: 20,
+                top: 20,
+                bottom: MediaQuery.of(context).viewInsets.bottom + 24,
+              ),
+              child: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Center(
+                      child: Container(
+                        width: 44,
+                        height: 5,
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFCBD5E1),
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    Row(
+                      children: const [
+                        Icon(Icons.location_on, color: Color(0xFF6366F1), size: 24),
+                        SizedBox(width: 8),
+                        Text(
+                          'Configurar Ubicación en Venezuela',
+                          style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Color(0xFF0F172A)),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 6),
+                    const Text(
+                      'Filtra precios, comparativas y directorio por Estado y Municipio específico.',
+                      style: TextStyle(color: Color(0xFF64748B), fontSize: 13),
+                    ),
+                    const SizedBox(height: 20),
+
+                    // Selector de Estado
+                    const Text('Estado:', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+                    const SizedBox(height: 8),
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
+                      children: (_locationsData?.states ?? [
+                        VenezuelaStateLocation(state: 'Carabobo', supermarketsCount: 17, municipalities: []),
+                        VenezuelaStateLocation(state: 'Distrito Capital', supermarketsCount: 0, municipalities: []),
+                        VenezuelaStateLocation(state: 'Miranda', supermarketsCount: 0, municipalities: []),
+                        VenezuelaStateLocation(state: 'Aragua', supermarketsCount: 0, municipalities: []),
+                        VenezuelaStateLocation(state: 'Zulia', supermarketsCount: 0, municipalities: []),
+                        VenezuelaStateLocation(state: 'Lara', supermarketsCount: 0, municipalities: []),
+                      ]).map((st) {
+                        final isSel = tempState.toLowerCase() == st.state.toLowerCase();
+                        return ChoiceChip(
+                          label: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Text(st.state, style: TextStyle(fontWeight: isSel ? FontWeight.bold : FontWeight.normal)),
+                              if (st.supermarketsCount > 0) ...[
+                                const SizedBox(width: 4),
+                                Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                  decoration: BoxDecoration(
+                                    color: isSel ? Colors.white.withOpacity(0.3) : const Color(0xFF10B981).withOpacity(0.15),
+                                    borderRadius: BorderRadius.circular(10),
+                                  ),
+                                  child: Text(
+                                    '${st.supermarketsCount}',
+                                    style: TextStyle(
+                                      fontSize: 10,
+                                      fontWeight: FontWeight.bold,
+                                      color: isSel ? Colors.white : const Color(0xFF059669),
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ],
+                          ),
+                          selected: isSel,
+                          selectedColor: const Color(0xFF6366F1),
+                          labelStyle: TextStyle(color: isSel ? Colors.white : const Color(0xFF334155)),
+                          onSelected: (val) {
+                            if (val) {
+                              setModalState(() {
+                                tempState = st.state;
+                                tempMun = 'Todos';
+                              });
+                            }
+                          },
+                        );
+                      }).toList(),
+                    ),
+                    const SizedBox(height: 20),
+
+                    // Selector de Municipios de Carabobo
+                    if (tempState.toLowerCase() == 'carabobo') ...[
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          const Text('Municipios de Carabobo:', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+                          Text(
+                            '${caraboboLoc?.supermarketsCount ?? 17} supermercados',
+                            style: const TextStyle(fontSize: 12, color: Color(0xFF059669), fontWeight: FontWeight.bold),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 8),
+                      Wrap(
+                        spacing: 8,
+                        runSpacing: 8,
+                        children: [
+                          ChoiceChip(
+                            label: const Text('Todos los Municipios'),
+                            selected: tempMun == 'Todos',
+                            selectedColor: const Color(0xFF10B981),
+                            labelStyle: TextStyle(color: tempMun == 'Todos' ? Colors.white : const Color(0xFF334155)),
+                            onSelected: (val) {
+                              if (val) setModalState(() => tempMun = 'Todos');
+                            },
+                          ),
+                          ...(caraboboLoc?.municipalities ?? []).map((m) {
+                            final isSel = tempMun.toLowerCase() == m.name.toLowerCase();
+                            return ChoiceChip(
+                              label: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Text(m.name),
+                                  if (m.supermarketsCount > 0) ...[
+                                    const SizedBox(width: 4),
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+                                      decoration: BoxDecoration(
+                                        color: isSel ? Colors.white.withOpacity(0.3) : const Color(0xFF6366F1).withOpacity(0.12),
+                                        borderRadius: BorderRadius.circular(8),
+                                      ),
+                                      child: Text(
+                                        '${m.supermarketsCount}',
+                                        style: TextStyle(
+                                          fontSize: 10,
+                                          fontWeight: FontWeight.bold,
+                                          color: isSel ? Colors.white : const Color(0xFF6366F1),
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ],
+                              ),
+                              selected: isSel,
+                              selectedColor: const Color(0xFF6366F1),
+                              labelStyle: TextStyle(color: isSel ? Colors.white : const Color(0xFF334155)),
+                              onSelected: (val) {
+                                if (val) setModalState(() => tempMun = m.name);
+                              },
+                            );
+                          }),
+                        ],
+                      ),
+                    ],
+
+                    const SizedBox(height: 24),
+                    SizedBox(
+                      width: double.infinity,
+                      height: 48,
+                      child: ElevatedButton.icon(
+                        onPressed: () {
+                          Navigator.pop(ctx);
+                          setState(() {
+                            _selectedState = tempState;
+                            _selectedMunicipality = tempMun;
+                          });
+                          _loadAllData();
+                        },
+                        icon: const Icon(Icons.check),
+                        label: const Text('Aplicar Ubicación', style: TextStyle(fontWeight: FontWeight.bold)),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFF6366F1),
+                          foregroundColor: Colors.white,
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
   void _showAddProductDialog() {
     if (_activeList == null) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -142,42 +391,34 @@ class _GroceriesScreenState extends State<GroceriesScreen> with SingleTickerProv
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       const Text(
-                        'Agregar Producto a Lista',
+                        'Agregar Producto a la Lista',
                         style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Color(0xFF0F172A)),
                       ),
-                      IconButton(
-                        icon: const Icon(Icons.close),
-                        onPressed: () => Navigator.pop(ctx),
-                      ),
+                      IconButton(onPressed: () => Navigator.pop(ctx), icon: const Icon(Icons.close)),
                     ],
                   ),
                   const SizedBox(height: 12),
 
-                  // Selector rápido de producto conocido
+                  // Selector rápido de productos predeterminados
                   if (_allProducts.isNotEmpty) ...[
-                    const Text('Sugeridos de la Cesta:', style: TextStyle(fontSize: 12, color: Color(0xFF64748B))),
+                    const Text('Sugerencias populares:', style: TextStyle(fontSize: 12, color: Color(0xFF64748B))),
                     const SizedBox(height: 6),
                     SizedBox(
                       height: 38,
                       child: ListView.separated(
                         scrollDirection: Axis.horizontal,
-                        itemCount: _allProducts.length,
+                        itemCount: _allProducts.take(8).length,
                         separatorBuilder: (_, __) => const SizedBox(width: 8),
-                        itemBuilder: (context, index) {
-                          final p = _allProducts[index];
-                          final isSel = selectedProduct?.id == p.id;
-                          return ChoiceChip(
-                            label: Text(p.name, style: TextStyle(fontSize: 12, color: isSel ? Colors.white : Colors.black87)),
-                            selected: isSel,
-                            selectedColor: const Color(0xFF6366F1),
-                            onSelected: (sel) {
+                        itemBuilder: (context, idx) {
+                          final p = _allProducts[idx];
+                          return ActionChip(
+                            label: Text(p.name.split(' (').first),
+                            onPressed: () {
                               setModalState(() {
-                                selectedProduct = sel ? p : null;
-                                if (sel) {
-                                  nameController.text = p.name;
-                                  priceUsdController.text = p.latestPriceUsd.toStringAsFixed(2);
-                                  priceBsController.text = p.latestPriceBs.toStringAsFixed(2);
-                                }
+                                selectedProduct = p;
+                                nameController.text = p.name;
+                                priceUsdController.text = p.latestPriceUsd.toStringAsFixed(2);
+                                priceBsController.text = p.latestPriceBs.toStringAsFixed(2);
                               });
                             },
                           );
@@ -187,22 +428,20 @@ class _GroceriesScreenState extends State<GroceriesScreen> with SingleTickerProv
                     const SizedBox(height: 12),
                   ],
 
-                  // Campo Nombre del producto
                   TextField(
                     controller: nameController,
                     decoration: InputDecoration(
                       labelText: 'Nombre del producto',
+                      hintText: 'Ej: Arroz Primor 1kg',
                       prefixIcon: const Icon(Icons.shopping_bag_outlined),
                       border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
                     ),
                   ),
                   const SizedBox(height: 12),
 
-                  // Cantidad y Precio en $
                   Row(
                     children: [
                       Expanded(
-                        flex: 2,
                         child: TextField(
                           controller: qtyController,
                           keyboardType: const TextInputType.numberWithOptions(decimal: true),
@@ -215,18 +454,18 @@ class _GroceriesScreenState extends State<GroceriesScreen> with SingleTickerProv
                       ),
                       const SizedBox(width: 12),
                       Expanded(
-                        flex: 3,
                         child: TextField(
                           controller: priceUsdController,
                           keyboardType: const TextInputType.numberWithOptions(decimal: true),
                           decoration: InputDecoration(
-                            labelText: 'Precio (\$ USD)',
+                            labelText: 'Precio \$ USD',
                             prefixIcon: const Icon(Icons.attach_money),
                             border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
                           ),
                           onChanged: (val) {
                             final usd = double.tryParse(val) ?? 0.0;
-                            priceBsController.text = (usd * _apiService.activeBcvRate).toStringAsFixed(2);
+                            final rate = _apiService.activeBcvRate;
+                            priceBsController.text = (usd * rate).toStringAsFixed(2);
                           },
                         ),
                       ),
@@ -234,19 +473,19 @@ class _GroceriesScreenState extends State<GroceriesScreen> with SingleTickerProv
                   ),
                   const SizedBox(height: 12),
 
-                  // Precio en Bs
                   TextField(
                     controller: priceBsController,
                     keyboardType: const TextInputType.numberWithOptions(decimal: true),
                     decoration: InputDecoration(
-                      labelText: 'Precio en Bolívares (Bs.)',
+                      labelText: 'Precio Bs (VES)',
                       prefixIcon: const Icon(Icons.currency_exchange),
                       border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
                     ),
                     onChanged: (val) {
                       final bs = double.tryParse(val) ?? 0.0;
-                      if (_apiService.activeBcvRate > 0) {
-                        priceUsdController.text = (bs / _apiService.activeBcvRate).toStringAsFixed(2);
+                      final rate = _apiService.activeBcvRate;
+                      if (rate > 0) {
+                        priceUsdController.text = (bs / rate).toStringAsFixed(2);
                       }
                     },
                   ),
@@ -301,9 +540,9 @@ class _GroceriesScreenState extends State<GroceriesScreen> with SingleTickerProv
     );
   }
 
-  void _showCreateListDialog() {
-    final titleController = TextEditingController(text: 'Compras de la Semana');
-    int? selectedSupermarketId;
+  void _showCreateListDialog({int? preselectedSupermarketId}) {
+    final titleController = TextEditingController(text: 'Compras Semanales');
+    int? selectedSupermarketId = preselectedSupermarketId;
 
     showDialog(
       context: context,
@@ -326,12 +565,18 @@ class _GroceriesScreenState extends State<GroceriesScreen> with SingleTickerProv
                   const SizedBox(height: 12),
                   DropdownButtonFormField<int>(
                     decoration: InputDecoration(
-                      labelText: 'Supermercado (Opcional)',
+                      labelText: 'Supermercado de Compra',
                       border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
                     ),
-                    value: selectedSupermarketId,
+                    initialValue: selectedSupermarketId,
                     items: _supermarkets.map((s) {
-                      return DropdownMenuItem(value: s.id, child: Text(s.name));
+                      return DropdownMenuItem(
+                        value: s.id,
+                        child: Text(
+                          '${s.name} (${s.municipality})',
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      );
                     }).toList(),
                     onChanged: (val) => setDialogState(() => selectedSupermarketId = val),
                   ),
@@ -351,6 +596,7 @@ class _GroceriesScreenState extends State<GroceriesScreen> with SingleTickerProv
                         setState(() {
                           _lists = allLists;
                           _activeList = newList;
+                          _tabController.animateTo(0);
                         });
                       }
                     } catch (e) {
@@ -375,13 +621,13 @@ class _GroceriesScreenState extends State<GroceriesScreen> with SingleTickerProv
 
   @override
   Widget build(BuildContext context) {
-    final currencyFmt = NumberFormat('#,##0.00', 'es_VE');
+    final currencyFmt = NumberFormat("#,##0.00", "es_VE");
 
     return Scaffold(
       backgroundColor: const Color(0xFFF8FAFC),
       appBar: AppBar(
         title: const Text(
-          'Supermercados & Compras',
+          'Kryon • Supermercados',
           style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
         ),
         actions: [
@@ -437,25 +683,95 @@ class _GroceriesScreenState extends State<GroceriesScreen> with SingleTickerProv
           tabs: const [
             Tab(icon: Icon(Icons.checklist, size: 18), text: 'Lista Activa'),
             Tab(icon: Icon(Icons.trending_up, size: 18), text: '¿Cuánto Subió?'),
-            Tab(icon: Icon(Icons.storefront, size: 18), text: 'Comparar Súpers'),
+            Tab(icon: Icon(Icons.leaderboard_outlined, size: 18), text: 'Más Económico'),
+            Tab(icon: Icon(Icons.location_on, size: 18), text: 'Directorio Carabobo'),
           ],
         ),
       ),
-      body: _isLoading
-          ? const Center(child: CircularProgressIndicator())
-          : TabBarView(
-              controller: _tabController,
+      body: Column(
+        children: [
+          // BARRA SUPERIOR DE UBICACIÓN (VENEZUELA / CARABOBO)
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            decoration: const BoxDecoration(
+              color: Colors.white,
+              border: Border(bottom: BorderSide(color: Color(0xFFE2E8F0))),
+            ),
+            child: Row(
               children: [
-                // TAB 1: LISTA ACTIVA ("QUÉ LLEVO, CUÁNTO LLEVO")
-                _buildActiveListTab(currencyFmt),
-
-                // TAB 2: COMPARADOR DE PRECIOS Y VARIACIÓN ("CUÁNTO SUBIÓ")
-                _buildPriceComparisonTab(currencyFmt),
-
-                // TAB 3: COMPARADOR DE SUPERMERCADOS ("CUÁL ES MÁS ECONÓMICO")
-                _buildSupermarketRankingTab(currencyFmt),
+                Container(
+                  padding: const EdgeInsets.all(6),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF6366F1).withOpacity(0.1),
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(Icons.location_on, color: Color(0xFF6366F1), size: 18),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: InkWell(
+                    onTap: _showLocationSelectorDialog,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            Text(
+                              '$_selectedState • ${_selectedMunicipality == "Todos" ? "Todos los municipios" : _selectedMunicipality}',
+                              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Color(0xFF0F172A)),
+                            ),
+                            const SizedBox(width: 4),
+                            const Icon(Icons.keyboard_arrow_down, size: 16, color: Color(0xFF6366F1)),
+                          ],
+                        ),
+                        Text(
+                          '${_supermarkets.length} supermercados registrados con precios reales',
+                          style: const TextStyle(fontSize: 11, color: Color(0xFF64748B)),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+                OutlinedButton.icon(
+                  onPressed: _showLocationSelectorDialog,
+                  icon: const Icon(Icons.tune, size: 14),
+                  label: const Text('Cambiar', style: TextStyle(fontSize: 12)),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: const Color(0xFF6366F1),
+                    side: const BorderSide(color: Color(0xFFCBD5E1)),
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                    minimumSize: Size.zero,
+                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                  ),
+                ),
               ],
             ),
+          ),
+
+          // CONTENIDO DE PESTAÑAS
+          Expanded(
+            child: _isLoading
+                ? const Center(child: CircularProgressIndicator())
+                : TabBarView(
+                    controller: _tabController,
+                    children: [
+                      // TAB 1: LISTA ACTIVA ("QUÉ LLEVO, CUÁNTO LLEVO")
+                      _buildActiveListTab(currencyFmt),
+
+                      // TAB 2: COMPARADOR DE PRECIOS Y VARIACIÓN ("CUÁNTO SUBIÓ")
+                      _buildPriceComparisonTab(currencyFmt),
+
+                      // TAB 3: COMPARADOR DE SUPERMERCADOS ("CUÁL ES MÁS ECONÓMICO")
+                      _buildSupermarketRankingTab(currencyFmt),
+
+                      // TAB 4: DIRECTORIO DE SUPERMERCADOS DE CARABOBO
+                      _buildCaraboboDirectoryTab(currencyFmt),
+                    ],
+                  ),
+          ),
+        ],
+      ),
       floatingActionButton: _tabController.index == 0
           ? FloatingActionButton.extended(
               onPressed: _showAddProductDialog,
@@ -491,7 +807,7 @@ class _GroceriesScreenState extends State<GroceriesScreen> with SingleTickerProv
               ),
               const SizedBox(height: 20),
               ElevatedButton.icon(
-                onPressed: _showCreateListDialog,
+                onPressed: () => _showCreateListDialog(),
                 icon: const Icon(Icons.add),
                 label: const Text('Crear Primera Lista'),
                 style: ElevatedButton.styleFrom(
@@ -545,7 +861,7 @@ class _GroceriesScreenState extends State<GroceriesScreen> with SingleTickerProv
               ),
               const SizedBox(width: 8),
               IconButton(
-                onPressed: _showCreateListDialog,
+                onPressed: () => _showCreateListDialog(),
                 icon: const Icon(Icons.add_circle, color: Color(0xFF6366F1), size: 32),
                 tooltip: 'Nueva Lista',
               ),
@@ -711,6 +1027,31 @@ class _GroceriesScreenState extends State<GroceriesScreen> with SingleTickerProv
   Widget _buildPriceComparisonTab(NumberFormat currencyFmt) {
     final symbol = _showInBs ? 'Bs.' : '\$';
 
+    if (_productComparisons.isEmpty) {
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const Icon(Icons.search_off, size: 48, color: Color(0xFF94A3B8)),
+              const SizedBox(height: 12),
+              Text(
+                'Sin registros de precios en $_selectedMunicipality',
+                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+              ),
+              const SizedBox(height: 6),
+              const Text(
+                'Cambia la ubicación a "Todos los municipios" para ver la comparativa completa de Carabobo.',
+                textAlign: TextAlign.center,
+                style: TextStyle(color: Color(0xFF64748B), fontSize: 13),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
     return RefreshIndicator(
       onRefresh: _loadAllData,
       child: ListView.separated(
@@ -800,18 +1141,29 @@ class _GroceriesScreenState extends State<GroceriesScreen> with SingleTickerProv
                               children: [
                                 Row(
                                   children: [
-                                    Text(
-                                      comp.supermarketName,
-                                      style: TextStyle(
-                                        fontWeight: FontWeight.bold,
-                                        fontSize: 13,
-                                        color: comp.isCheapest ? const Color(0xFF059669) : const Color(0xFF1E293B),
+                                    Flexible(
+                                      child: Text(
+                                        comp.supermarketName,
+                                        style: TextStyle(
+                                          fontWeight: FontWeight.bold,
+                                          fontSize: 13,
+                                          color: comp.isCheapest ? const Color(0xFF059669) : const Color(0xFF1E293B),
+                                        ),
+                                        overflow: TextOverflow.ellipsis,
                                       ),
                                     ),
+                                    if (comp.municipality != null)
+                                      Padding(
+                                        padding: const EdgeInsets.only(left: 6),
+                                        child: Text(
+                                          '(${comp.municipality})',
+                                          style: const TextStyle(color: Color(0xFF64748B), fontSize: 11),
+                                        ),
+                                      ),
                                     if (comp.isCheapest)
                                       const Padding(
                                         padding: EdgeInsets.only(left: 6),
-                                        child: Text('• Más Económico', style: TextStyle(color: Color(0xFF059669), fontSize: 11, fontWeight: FontWeight.bold)),
+                                        child: Text('• Más Barato', style: TextStyle(color: Color(0xFF059669), fontSize: 11, fontWeight: FontWeight.bold)),
                                       ),
                                   ],
                                 ),
@@ -909,8 +1261,8 @@ class _GroceriesScreenState extends State<GroceriesScreen> with SingleTickerProv
                   ),
                   const SizedBox(height: 8),
                   Text(
-                    cheapest.supermarketName,
-                    style: const TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.bold),
+                    '${cheapest.supermarketName} (${cheapest.branch ?? cheapest.municipality ?? ""})',
+                    style: const TextStyle(color: Colors.white, fontSize: 22, fontWeight: FontWeight.bold),
                   ),
                   const SizedBox(height: 4),
                   Text(
@@ -936,9 +1288,9 @@ class _GroceriesScreenState extends State<GroceriesScreen> with SingleTickerProv
             ),
           const SizedBox(height: 20),
 
-          const Text(
-            'Comparativa de Costo de Cesta por Supermercado:',
-            style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Color(0xFF0F172A)),
+          Text(
+            'Comparativa de Costo de Cesta (${_selectedMunicipality == "Todos" ? "Todo Carabobo" : _selectedMunicipality}):',
+            style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Color(0xFF0F172A)),
           ),
           const SizedBox(height: 10),
 
@@ -987,9 +1339,12 @@ class _GroceriesScreenState extends State<GroceriesScreen> with SingleTickerProv
                         children: [
                           Row(
                             children: [
-                              Text(
-                                r.supermarketName,
-                                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15, color: Color(0xFF0F172A)),
+                              Flexible(
+                                child: Text(
+                                  '${r.supermarketName} ${r.branch != null ? "(${r.branch})" : ""}',
+                                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: Color(0xFF0F172A)),
+                                  overflow: TextOverflow.ellipsis,
+                                ),
                               ),
                               if (isFirst)
                                 const Padding(
@@ -999,7 +1354,7 @@ class _GroceriesScreenState extends State<GroceriesScreen> with SingleTickerProv
                             ],
                           ),
                           Text(
-                            '${r.productsTracked} productos evaluados • Promedio: \$ ${r.averageProductPriceUsd.toStringAsFixed(2)} / prod',
+                            '${r.municipality ?? "Carabobo"} • ${r.productsTracked} productos evaluados',
                             style: const TextStyle(fontSize: 12, color: Color(0xFF64748B)),
                           ),
                         ],
@@ -1028,6 +1383,286 @@ class _GroceriesScreenState extends State<GroceriesScreen> with SingleTickerProv
               ),
             );
           }),
+        ],
+      ),
+    );
+  }
+
+  // --- TAB 4: DIRECTORIO DE SUPERMERCADOS DE CARABOBO ---
+
+  Widget _buildCaraboboDirectoryTab(NumberFormat currencyFmt) {
+    return RefreshIndicator(
+      onRefresh: _loadAllData,
+      child: ListView(
+        padding: const EdgeInsets.all(16),
+        children: [
+          // Campo de Búsqueda
+          TextField(
+            controller: _searchController,
+            decoration: InputDecoration(
+              hintText: 'Buscar por nombre, zona o descripción...',
+              prefixIcon: const Icon(Icons.search, color: Color(0xFF6366F1)),
+              suffixIcon: _searchQuery.isNotEmpty
+                  ? IconButton(
+                      icon: const Icon(Icons.clear),
+                      onPressed: () {
+                        _searchController.clear();
+                        setState(() => _searchQuery = '');
+                        _loadAllData();
+                      },
+                    )
+                  : null,
+              filled: true,
+              fillColor: Colors.white,
+              contentPadding: const EdgeInsets.symmetric(vertical: 0, horizontal: 16),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(14),
+                borderSide: const BorderSide(color: Color(0xFFCBD5E1)),
+              ),
+              enabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(14),
+                borderSide: const BorderSide(color: Color(0xFFCBD5E1)),
+              ),
+            ),
+            onChanged: (val) {
+              setState(() => _searchQuery = val);
+              _loadAllData();
+            },
+          ),
+          const SizedBox(height: 12),
+
+          // Chips rápidos de municipios de Carabobo
+          SizedBox(
+            height: 38,
+            child: ListView.separated(
+              scrollDirection: Axis.horizontal,
+              itemCount: _caraboboQuickMunicipalities.length,
+              separatorBuilder: (_, __) => const SizedBox(width: 8),
+              itemBuilder: (context, idx) {
+                final mun = _caraboboQuickMunicipalities[idx];
+                final isSelected = _selectedMunicipality.toLowerCase() == mun.toLowerCase();
+                return ChoiceChip(
+                  label: Text(mun),
+                  selected: isSelected,
+                  selectedColor: const Color(0xFF6366F1),
+                  labelStyle: TextStyle(
+                    color: isSelected ? Colors.white : const Color(0xFF334155),
+                    fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                    fontSize: 12,
+                  ),
+                  onSelected: (val) {
+                    if (val) {
+                      setState(() => _selectedMunicipality = mun);
+                      _loadAllData();
+                    }
+                  },
+                );
+              },
+            ),
+          ),
+          const SizedBox(height: 16),
+
+          // Lista de Tarjetas de Supermercados
+          if (_supermarkets.isEmpty)
+            Container(
+              padding: const EdgeInsets.all(32),
+              alignment: Alignment.center,
+              child: Column(
+                children: const [
+                  Icon(Icons.store_mall_directory_outlined, size: 48, color: Color(0xFF94A3B8)),
+                  SizedBox(height: 12),
+                  Text('No se encontraron supermercados con este filtro', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                  SizedBox(height: 6),
+                  Text('Intenta seleccionar otro municipio o limpiar el texto de búsqueda.', textAlign: TextAlign.center, style: TextStyle(color: Color(0xFF64748B), fontSize: 13)),
+                ],
+              ),
+            )
+          else
+            ..._supermarkets.map((s) {
+              return Card(
+                margin: const EdgeInsets.only(bottom: 14),
+                elevation: 0,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(16),
+                  side: const BorderSide(color: Color(0xFFE2E8F0)),
+                ),
+                child: Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // Encabezado: Nombre, Sucursal y Badge de Municipio
+                      Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.all(10),
+                            decoration: BoxDecoration(
+                              gradient: const LinearGradient(
+                                colors: [Color(0xFF6366F1), Color(0xFF4F46E5)],
+                                begin: Alignment.topLeft,
+                                end: Alignment.bottomRight,
+                              ),
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: const Icon(Icons.storefront, color: Colors.white, size: 24),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  s.name,
+                                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Color(0xFF0F172A)),
+                                ),
+                                if (s.branch != null)
+                                  Text(
+                                    s.branch!,
+                                    style: const TextStyle(fontSize: 13, color: Color(0xFF6366F1), fontWeight: FontWeight.w600),
+                                  ),
+                              ],
+                            ),
+                          ),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFEEF2FF),
+                              borderRadius: BorderRadius.circular(20),
+                              border: Border.all(color: const Color(0xFFC7D2FE)),
+                            ),
+                            child: Text(
+                              s.municipality,
+                              style: const TextStyle(
+                                fontSize: 11,
+                                fontWeight: FontWeight.bold,
+                                color: Color(0xFF4338CA),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 12),
+
+                      // Ubicación exacta
+                      if (s.address != null) ...[
+                        Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Icon(Icons.place, size: 16, color: Color(0xFFEF4444)),
+                            const SizedBox(width: 6),
+                            Expanded(
+                              child: Text(
+                                s.address!,
+                                style: const TextStyle(fontSize: 13, color: Color(0xFF334155), fontWeight: FontWeight.w500),
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 8),
+                      ],
+
+                      // Descripción del mercado
+                      if (s.description != null) ...[
+                        Container(
+                          padding: const EdgeInsets.all(10),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFF8FAFC),
+                            borderRadius: BorderRadius.circular(10),
+                            border: Border.all(color: const Color(0xFFE2E8F0)),
+                          ),
+                          child: Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const Icon(Icons.info_outline, size: 16, color: Color(0xFF0284C7)),
+                              const SizedBox(width: 6),
+                              Expanded(
+                                child: Text(
+                                  s.description!,
+                                  style: const TextStyle(fontSize: 12, color: Color(0xFF475569), height: 1.3),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(height: 10),
+                      ],
+
+                      // Horario y Teléfono
+                      Row(
+                        children: [
+                          if (s.openingHours != null)
+                            Expanded(
+                              child: Row(
+                                children: [
+                                  const Icon(Icons.access_time, size: 14, color: Color(0xFF64748B)),
+                                  const SizedBox(width: 4),
+                                  Flexible(
+                                    child: Text(
+                                      s.openingHours!,
+                                      style: const TextStyle(fontSize: 11, color: Color(0xFF64748B)),
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          if (s.phone != null) ...[
+                            const SizedBox(width: 8),
+                            Row(
+                              children: [
+                                const Icon(Icons.phone_outlined, size: 14, color: Color(0xFF64748B)),
+                                const SizedBox(width: 4),
+                                Text(
+                                  s.phone!,
+                                  style: const TextStyle(fontSize: 11, color: Color(0xFF64748B)),
+                                ),
+                              ],
+                            ),
+                          ],
+                        ],
+                      ),
+                      const SizedBox(height: 12),
+
+                      // Botones de acción rápida
+                      Row(
+                        children: [
+                          Expanded(
+                            child: OutlinedButton.icon(
+                              onPressed: () {
+                                _showCreateListDialog(preselectedSupermarketId: s.id);
+                              },
+                              icon: const Icon(Icons.add_shopping_cart, size: 16),
+                              label: const Text('Crear Lista Aquí', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+                              style: OutlinedButton.styleFrom(
+                                foregroundColor: const Color(0xFF6366F1),
+                                side: const BorderSide(color: Color(0xFF6366F1)),
+                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: ElevatedButton.icon(
+                              onPressed: () {
+                                _tabController.animateTo(2);
+                              },
+                              icon: const Icon(Icons.leaderboard_outlined, size: 16),
+                              label: const Text('Ver Precios', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: const Color(0xFF0F172A),
+                                foregroundColor: Colors.white,
+                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+              );
+            }),
         ],
       ),
     );

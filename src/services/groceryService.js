@@ -1,23 +1,113 @@
-import { db } from '../config/database.js';
+import { db, VENEZUELA_LOCATIONS, CARABOBO_MUNICIPALITIES } from '../config/database.js';
 
 export const groceryService = {
-  // Supermercados
-  getSupermarkets(userId) {
-    const stmt = db.prepare(`
-      SELECT * FROM supermarkets 
-      WHERE user_id IS NULL OR user_id = ? 
-      ORDER BY name ASC
-    `);
-    return stmt.all(userId);
+  // Ubicaciones geográficas de Venezuela (Estados y Municipios con conteo de supermercados)
+  getLocations(userId) {
+    const counts = db.prepare(`
+      SELECT state, municipality, COUNT(*) as count 
+      FROM supermarkets 
+      WHERE user_id IS NULL OR user_id = ?
+      GROUP BY state, municipality
+    `).all(userId || null);
+
+    const countMap = {};
+    let totalCarabobo = 0;
+    for (const row of counts) {
+      const stateKey = (row.state || 'Carabobo').toLowerCase();
+      const munKey = (row.municipality || 'Valencia').toLowerCase();
+      countMap[`${stateKey}_${munKey}`] = row.count;
+      if (stateKey === 'carabobo') {
+        totalCarabobo += row.count;
+      }
+    }
+
+    const states = VENEZUELA_LOCATIONS.map(loc => {
+      let stateCount = 0;
+      const municipalitiesData = loc.municipalities.map(m => {
+        const c = countMap[`${loc.state.toLowerCase()}_${m.toLowerCase()}`] || 0;
+        stateCount += c;
+        return {
+          name: m,
+          supermarkets_count: c
+        };
+      });
+
+      return {
+        state: loc.state,
+        supermarkets_count: stateCount,
+        municipalities: municipalitiesData
+      };
+    });
+
+    return {
+      current_state: 'Carabobo',
+      total_supermarkets_carabobo: totalCarabobo,
+      states
+    };
   },
 
-  createSupermarket(userId, { name, branch }) {
+  // Supermercados con filtros por Estado, Municipio y Búsqueda
+  getSupermarkets(userId, { state, municipality, search } = {}) {
+    let query = `
+      SELECT * FROM supermarkets 
+      WHERE (user_id IS NULL OR user_id = ?)
+    `;
+    const params = [userId || null];
+
+    if (state && state.trim().length > 0) {
+      query += ` AND LOWER(state) = LOWER(?)`;
+      params.push(state.trim());
+    }
+
+    if (municipality && municipality.trim().length > 0 && municipality.toLowerCase() !== 'todos') {
+      query += ` AND LOWER(municipality) = LOWER(?)`;
+      params.push(municipality.trim());
+    }
+
+    if (search && search.trim().length > 0) {
+      query += ` AND (
+        LOWER(name) LIKE LOWER(?) OR 
+        LOWER(COALESCE(branch, '')) LIKE LOWER(?) OR 
+        LOWER(COALESCE(address, '')) LIKE LOWER(?) OR 
+        LOWER(COALESCE(description, '')) LIKE LOWER(?) OR 
+        LOWER(COALESCE(municipality, '')) LIKE LOWER(?)
+      )`;
+      const s = `%${search.trim()}%`;
+      params.push(s, s, s, s, s);
+    }
+
+    query += ` ORDER BY municipality ASC, name ASC`;
+    return db.prepare(query).all(...params);
+  },
+
+  createSupermarket(userId, { name, branch, state, municipality, address, description, phone, opening_hours }) {
     const stmt = db.prepare(`
-      INSERT INTO supermarkets (user_id, name, branch) 
-      VALUES (?, ?, ?)
+      INSERT INTO supermarkets (user_id, name, branch, state, municipality, address, description, phone, opening_hours) 
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
     `);
-    const info = stmt.run(userId, name, branch || null);
-    return { id: info.lastInsertRowid, user_id: userId, name, branch };
+    const info = stmt.run(
+      userId || null, 
+      name, 
+      branch || null, 
+      state || 'Carabobo', 
+      municipality || 'Valencia', 
+      address || null, 
+      description || null, 
+      phone || null, 
+      opening_hours || null
+    );
+    return { 
+      id: info.lastInsertRowid, 
+      user_id: userId, 
+      name, 
+      branch, 
+      state: state || 'Carabobo', 
+      municipality: municipality || 'Valencia', 
+      address, 
+      description, 
+      phone, 
+      opening_hours 
+    };
   },
 
   // Productos
@@ -98,20 +188,31 @@ export const groceryService = {
     };
   },
 
-  // Comparador de Precios de Productos con historial y cuánto subió
-  getCompareProducts(userId) {
+  // Comparador de Precios de Productos con historial y cuánto subió (con filtro opcional de Estado y Municipio)
+  getCompareProducts(userId, { state, municipality } = {}) {
     const products = this.getProducts(userId);
     const result = [];
+
+    let superFilterClause = '';
+    const superFilterParams = [];
+    if (state && state.trim().length > 0) {
+      superFilterClause += ' AND LOWER(s.state) = LOWER(?)';
+      superFilterParams.push(state.trim());
+    }
+    if (municipality && municipality.trim().length > 0 && municipality.toLowerCase() !== 'todos') {
+      superFilterClause += ' AND LOWER(s.municipality) = LOWER(?)';
+      superFilterParams.push(municipality.trim());
+    }
 
     for (const prod of products) {
       // Obtener todos los precios registrados de este producto agrupados por supermercado
       const prices = db.prepare(`
-        SELECT gp.*, s.name as supermarket_name
+        SELECT gp.*, s.name as supermarket_name, s.branch as supermarket_branch, s.municipality, s.state
         FROM grocery_prices gp
         JOIN supermarkets s ON s.id = gp.supermarket_id
-        WHERE gp.product_id = ?
+        WHERE gp.product_id = ? ${superFilterClause}
         ORDER BY gp.date DESC, gp.id DESC
-      `).all(prod.id);
+      `).all(prod.id, ...superFilterParams);
 
       // Agrupar por supermercado el último precio
       const bySuper = {};
@@ -120,6 +221,9 @@ export const groceryService = {
           bySuper[p.supermarket_id] = {
             supermarket_id: p.supermarket_id,
             supermarket_name: p.supermarket_name,
+            supermarket_branch: p.supermarket_branch,
+            municipality: p.municipality,
+            state: p.state,
             current_price_usd: p.price_usd,
             current_price_bs: p.price_bs,
             date: p.date,
@@ -152,6 +256,9 @@ export const groceryService = {
         return {
           supermarket_id: item.supermarket_id,
           supermarket_name: item.supermarket_name,
+          supermarket_branch: item.supermarket_branch,
+          municipality: item.municipality,
+          state: item.state,
           current_price_usd: item.current_price_usd,
           current_price_bs: item.current_price_bs,
           previous_price_usd: previousPriceUsd,
@@ -182,9 +289,9 @@ export const groceryService = {
     return result;
   },
 
-  // Comparador de Supermercados: Cesta global para ver cuál es más económico en total
-  getCompareSupermarkets(userId) {
-    const supermarkets = this.getSupermarkets(userId);
+  // Comparador de Supermercados: Cesta global para ver cuál es más económico en total (con filtro de Estado y Municipio)
+  getCompareSupermarkets(userId, { state, municipality } = {}) {
+    const supermarkets = this.getSupermarkets(userId, { state, municipality });
     const products = this.getProducts(userId);
 
     const rankings = [];
@@ -215,6 +322,12 @@ export const groceryService = {
           supermarket_id: s.id,
           supermarket_name: s.name,
           branch: s.branch,
+          municipality: s.municipality,
+          state: s.state,
+          address: s.address,
+          description: s.description,
+          phone: s.phone,
+          opening_hours: s.opening_hours,
           total_basket_usd: +totalBasketUsd.toFixed(2),
           total_basket_bs: +totalBasketBs.toFixed(2),
           products_tracked: matchedItemsCount,
@@ -237,6 +350,10 @@ export const groceryService = {
     }
 
     return {
+      filter: {
+        state: state || 'Carabobo',
+        municipality: municipality || 'Todos'
+      },
       cheapest_supermarket: rankings[0] || null,
       rankings
     };

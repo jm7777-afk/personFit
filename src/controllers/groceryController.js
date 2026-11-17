@@ -1,10 +1,21 @@
 import { groceryService } from '../services/groceryService.js';
 
 export const groceryController = {
-  // Supermercados
+  // Ubicaciones geográficas (Estados y Municipios de Venezuela)
+  getLocations(req, res, next) {
+    try {
+      const data = groceryService.getLocations(req.user?.id);
+      res.status(200).json({ status: 'success', data });
+    } catch (err) {
+      next(err);
+    }
+  },
+
+  // Supermercados con filtros por Estado, Municipio y Búsqueda
   getSupermarkets(req, res, next) {
     try {
-      const data = groceryService.getSupermarkets(req.user?.id);
+      const { state, municipality, search } = req.query;
+      const data = groceryService.getSupermarkets(req.user?.id, { state, municipality, search });
       res.status(200).json({ status: 'success', results: data.length, data });
     } catch (err) {
       next(err);
@@ -51,7 +62,8 @@ export const groceryController = {
 
   compareProducts(req, res, next) {
     try {
-      const data = groceryService.getCompareProducts(req.user?.id);
+      const { state, municipality } = req.query;
+      const data = groceryService.getCompareProducts(req.user?.id, { state, municipality });
       res.status(200).json({ status: 'success', results: data.length, data });
     } catch (err) {
       next(err);
@@ -60,7 +72,8 @@ export const groceryController = {
 
   compareSupermarkets(req, res, next) {
     try {
-      const data = groceryService.getCompareSupermarkets(req.user?.id);
+      const { state, municipality } = req.query;
+      const data = groceryService.getCompareSupermarkets(req.user?.id, { state, municipality });
       res.status(200).json({ status: 'success', data });
     } catch (err) {
       next(err);

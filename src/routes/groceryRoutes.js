@@ -3,6 +3,9 @@ import { groceryController } from '../controllers/groceryController.js';
 
 const router = Router();
 
+// Ubicaciones (Estados y Municipios de Venezuela)
+router.get('/locations', groceryController.getLocations);
+
 // Supermercados y Productos
 router.get('/supermarkets', groceryController.getSupermarkets);
 router.post('/supermarkets', groceryController.createSupermarket);

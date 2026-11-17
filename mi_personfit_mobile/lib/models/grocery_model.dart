@@ -2,11 +2,23 @@ class Supermarket {
   final int id;
   final String name;
   final String? branch;
+  final String state;
+  final String municipality;
+  final String? address;
+  final String? description;
+  final String? phone;
+  final String? openingHours;
 
   Supermarket({
     required this.id,
     required this.name,
     this.branch,
+    this.state = 'Carabobo',
+    this.municipality = 'Valencia',
+    this.address,
+    this.description,
+    this.phone,
+    this.openingHours,
   });
 
   factory Supermarket.fromJson(Map<String, dynamic> json) {
@@ -14,6 +26,73 @@ class Supermarket {
       id: json['id'],
       name: json['name'],
       branch: json['branch'],
+      state: json['state'] ?? 'Carabobo',
+      municipality: json['municipality'] ?? 'Valencia',
+      address: json['address'],
+      description: json['description'],
+      phone: json['phone'],
+      openingHours: json['opening_hours'],
+    );
+  }
+}
+
+class MunicipalityLocation {
+  final String name;
+  final int supermarketsCount;
+
+  MunicipalityLocation({
+    required this.name,
+    required this.supermarketsCount,
+  });
+
+  factory MunicipalityLocation.fromJson(Map<String, dynamic> json) {
+    return MunicipalityLocation(
+      name: json['name'] ?? '',
+      supermarketsCount: json['supermarkets_count'] ?? 0,
+    );
+  }
+}
+
+class VenezuelaStateLocation {
+  final String state;
+  final int supermarketsCount;
+  final List<MunicipalityLocation> municipalities;
+
+  VenezuelaStateLocation({
+    required this.state,
+    required this.supermarketsCount,
+    required this.municipalities,
+  });
+
+  factory VenezuelaStateLocation.fromJson(Map<String, dynamic> json) {
+    return VenezuelaStateLocation(
+      state: json['state'] ?? '',
+      supermarketsCount: json['supermarkets_count'] ?? 0,
+      municipalities: (json['municipalities'] as List? ?? [])
+          .map((m) => MunicipalityLocation.fromJson(m))
+          .toList(),
+    );
+  }
+}
+
+class LocationsData {
+  final String currentState;
+  final int totalSupermarketsCarabobo;
+  final List<VenezuelaStateLocation> states;
+
+  LocationsData({
+    required this.currentState,
+    required this.totalSupermarketsCarabobo,
+    required this.states,
+  });
+
+  factory LocationsData.fromJson(Map<String, dynamic> json) {
+    return LocationsData(
+      currentState: json['current_state'] ?? 'Carabobo',
+      totalSupermarketsCarabobo: json['total_supermarkets_carabobo'] ?? 0,
+      states: (json['states'] as List? ?? [])
+          .map((s) => VenezuelaStateLocation.fromJson(s))
+          .toList(),
     );
   }
 }
@@ -53,6 +132,9 @@ class GroceryProduct {
 class SupermarketPriceComparison {
   final int supermarketId;
   final String supermarketName;
+  final String? supermarketBranch;
+  final String? municipality;
+  final String? state;
   final double currentPriceUsd;
   final double currentPriceBs;
   final double? previousPriceUsd;
@@ -64,6 +146,9 @@ class SupermarketPriceComparison {
   SupermarketPriceComparison({
     required this.supermarketId,
     required this.supermarketName,
+    this.supermarketBranch,
+    this.municipality,
+    this.state,
     required this.currentPriceUsd,
     required this.currentPriceBs,
     this.previousPriceUsd,
@@ -77,6 +162,9 @@ class SupermarketPriceComparison {
     return SupermarketPriceComparison(
       supermarketId: json['supermarket_id'],
       supermarketName: json['supermarket_name'] ?? 'Supermercado',
+      supermarketBranch: json['supermarket_branch'],
+      municipality: json['municipality'],
+      state: json['state'],
       currentPriceUsd: (json['current_price_usd'] as num?)?.toDouble() ?? 0.0,
       currentPriceBs: (json['current_price_bs'] as num?)?.toDouble() ?? 0.0,
       previousPriceUsd: (json['previous_price_usd'] as num?)?.toDouble(),
@@ -116,6 +204,12 @@ class SupermarketRanking {
   final int supermarketId;
   final String supermarketName;
   final String? branch;
+  final String? municipality;
+  final String? state;
+  final String? address;
+  final String? description;
+  final String? phone;
+  final String? openingHours;
   final double totalBasketUsd;
   final double totalBasketBs;
   final int productsTracked;
@@ -127,6 +221,12 @@ class SupermarketRanking {
     required this.supermarketId,
     required this.supermarketName,
     this.branch,
+    this.municipality,
+    this.state,
+    this.address,
+    this.description,
+    this.phone,
+    this.openingHours,
     required this.totalBasketUsd,
     required this.totalBasketBs,
     required this.productsTracked,
@@ -140,6 +240,12 @@ class SupermarketRanking {
       supermarketId: json['supermarket_id'],
       supermarketName: json['supermarket_name'],
       branch: json['branch'],
+      municipality: json['municipality'],
+      state: json['state'],
+      address: json['address'],
+      description: json['description'],
+      phone: json['phone'],
+      openingHours: json['opening_hours'],
       totalBasketUsd: (json['total_basket_usd'] as num?)?.toDouble() ?? 0.0,
       totalBasketBs: (json['total_basket_bs'] as num?)?.toDouble() ?? 0.0,
       productsTracked: json['products_tracked'] ?? 0,
