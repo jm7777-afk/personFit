@@ -2,29 +2,29 @@ import { incomeRepository } from '../repositories/incomeRepository.js';
 import { NotFoundError } from '../utils/errors.js';
 
 export class IncomeService {
-  getAllIncomes(filters) {
-    return incomeRepository.findAll(filters);
+  getAllIncomes(filters, userId = null) {
+    return incomeRepository.findAll(filters, userId);
   }
 
-  getIncomeById(id) {
-    const income = incomeRepository.findById(id);
+  getIncomeById(id, userId = null) {
+    const income = incomeRepository.findById(id, userId);
     if (!income) {
       throw new NotFoundError(`Ingreso con id ${id} no encontrado`);
     }
     return income;
   }
 
-  createIncome(data) {
-    return incomeRepository.create(data);
+  createIncome(data, userId = null) {
+    return incomeRepository.create(data, userId);
   }
 
-  updateIncome(id, data) {
-    this.getIncomeById(id);
-    return incomeRepository.update(id, data);
+  updateIncome(id, data, userId = null) {
+    this.getIncomeById(id, userId);
+    return incomeRepository.update(id, data, userId);
   }
 
-  deleteIncome(id) {
-    this.getIncomeById(id);
+  deleteIncome(id, userId = null) {
+    this.getIncomeById(id, userId);
     return incomeRepository.delete(id);
   }
 }

@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'config/app_theme.dart';
-import 'screens/auth_screen.dart';
+import 'screens/splash_screen.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
@@ -16,7 +16,7 @@ class KryonApp extends StatelessWidget {
       title: 'Kryon',
       debugShowCheckedModeBanner: false,
       theme: AppTheme.lightTheme,
-      home: const AuthScreen(),
+      home: const SplashScreen(),
     );
   }
 }

@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import '../services/api_service.dart';
 import '../config/api_config.dart';
 import '../models/notification_model.dart';
+import '../widgets/share_profile_dialog.dart';
+import '../widgets/standard_calculator_dialog.dart';
 import 'auth_screen.dart';
 
 class ProfileScreen extends StatefulWidget {
@@ -246,7 +248,104 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 );
               }),
 
-            const SizedBox(height: 24),
+            const SizedBox(height: 20),
+
+            // COMPARTIR PERFIL FINANCIERO TEMPORAL (1 HORA, ETC.)
+            Container(
+              padding: const EdgeInsets.all(18),
+              decoration: BoxDecoration(
+                gradient: const LinearGradient(
+                  colors: [Color(0xFF4338CA), Color(0xFF6366F1)],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                ),
+                borderRadius: BorderRadius.circular(20),
+                boxShadow: [
+                  BoxShadow(
+                    color: const Color(0xFF6366F1).withOpacity(0.3),
+                    blurRadius: 12,
+                    offset: const Offset(0, 6),
+                  ),
+                ],
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: const [
+                      Icon(Icons.share, color: Colors.white, size: 22),
+                      SizedBox(width: 8),
+                      Text(
+                        'Compartir Perfil Financiero',
+                        style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 6),
+                  const Text(
+                    'Genera un enlace con límite de tiempo (ej. 1 hora, 3 horas) para que otra persona vea tu estado financiero. Al vencer el tiempo, se desconecta automáticamente.',
+                    style: TextStyle(color: Color(0xFFE0E7FF), fontSize: 13, height: 1.3),
+                  ),
+                  const SizedBox(height: 14),
+                  SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton.icon(
+                      onPressed: () {
+                        showDialog(
+                          context: context,
+                          builder: (_) => const ShareProfileDialog(),
+                        );
+                      },
+                      icon: const Icon(Icons.timer_outlined, size: 18),
+                      label: const Text('Gestionar Enlace Temporal', style: TextStyle(fontWeight: FontWeight.bold)),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.white,
+                        foregroundColor: const Color(0xFF4338CA),
+                        elevation: 0,
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 20),
+
+            // HERRAMIENTAS ADICIONALES (Calculadora & Preferencias)
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: const Color(0xFFE2E8F0)),
+              ),
+              child: Column(
+                children: [
+                  ListTile(
+                    contentPadding: EdgeInsets.zero,
+                    leading: Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF6366F1).withOpacity(0.12),
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: const Icon(Icons.calculate_outlined, color: Color(0xFF6366F1)),
+                    ),
+                    title: const Text('Calculadora Kryon con Tasas', style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold)),
+                    subtitle: const Text('Suma, resta, IVA y conversión Bs / \$ en vivo', style: TextStyle(fontSize: 12, color: Color(0xFF64748B))),
+                    trailing: const Icon(Icons.chevron_right),
+                    onTap: () {
+                      showDialog(
+                        context: context,
+                        builder: (_) => const StandardCalculatorDialog(),
+                      );
+                    },
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 20),
 
             // Servidor & DevOps Info
             Container(

@@ -4,7 +4,7 @@ export class IncomeController {
   getAll = (req, res, next) => {
     try {
       const { month, source } = req.query;
-      const data = incomeService.getAllIncomes({ month, source });
+      const data = incomeService.getAllIncomes({ month, source }, req.user?.id);
       res.status(200).json({ status: 'success', results: data.length, data });
     } catch (err) {
       next(err);
@@ -13,7 +13,7 @@ export class IncomeController {
 
   getById = (req, res, next) => {
     try {
-      const data = incomeService.getIncomeById(Number(req.params.id));
+      const data = incomeService.getIncomeById(Number(req.params.id), req.user?.id);
       res.status(200).json({ status: 'success', data });
     } catch (err) {
       next(err);
@@ -22,7 +22,7 @@ export class IncomeController {
 
   create = (req, res, next) => {
     try {
-      const data = incomeService.createIncome(req.body);
+      const data = incomeService.createIncome(req.body, req.user?.id);
       res.status(201).json({ status: 'success', message: 'Ingreso registrado exitosamente', data });
     } catch (err) {
       next(err);
@@ -31,7 +31,7 @@ export class IncomeController {
 
   update = (req, res, next) => {
     try {
-      const data = incomeService.updateIncome(Number(req.params.id), req.body);
+      const data = incomeService.updateIncome(Number(req.params.id), req.body, req.user?.id);
       res.status(200).json({ status: 'success', message: 'Ingreso actualizado', data });
     } catch (err) {
       next(err);
@@ -40,7 +40,7 @@ export class IncomeController {
 
   delete = (req, res, next) => {
     try {
-      incomeService.deleteIncome(Number(req.params.id));
+      incomeService.deleteIncome(Number(req.params.id), req.user?.id);
       res.status(200).json({ status: 'success', message: 'Ingreso eliminado' });
     } catch (err) {
       next(err);

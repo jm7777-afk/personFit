@@ -2,8 +2,8 @@ import 'package:flutter/material.dart';
 import 'dashboard_screen.dart';
 import 'debts_screen.dart';
 import 'expenses_screen.dart';
-import 'savings_screen.dart';
 import 'profile_screen.dart';
+import 'groceries_screen.dart';
 
 class MainNavigation extends StatefulWidget {
   const MainNavigation({super.key});
@@ -24,11 +24,12 @@ class _MainNavigationState extends State<MainNavigation> {
     final screens = [
       DashboardScreen(
         onNavigateToDebts: () => _navigateToIndex(1),
-        onNavigateToExpenses: () => _navigateToIndex(2),
+        onNavigateToExpenses: () => _navigateToIndex(3),
+        onNavigateToGroceries: () => _navigateToIndex(2),
       ),
       const DebtsScreen(),
+      const GroceriesScreen(),
       const ExpensesScreen(),
-      const SavingsScreen(),
       const ProfileScreen(),
     ];
 
@@ -53,7 +54,7 @@ class _MainNavigationState extends State<MainNavigation> {
           onTap: _navigateToIndex,
           type: BottomNavigationBarType.fixed,
           backgroundColor: Colors.white,
-          selectedItemColor: const Color(0xFF10B981),
+          selectedItemColor: const Color(0xFF6366F1),
           unselectedItemColor: const Color(0xFF94A3B8),
           selectedLabelStyle: const TextStyle(fontWeight: FontWeight.bold, fontSize: 11),
           unselectedLabelStyle: const TextStyle(fontWeight: FontWeight.w500, fontSize: 11),
@@ -70,14 +71,14 @@ class _MainNavigationState extends State<MainNavigation> {
               label: 'Deudas',
             ),
             BottomNavigationBarItem(
+              icon: Icon(Icons.shopping_cart_outlined),
+              activeIcon: Icon(Icons.shopping_cart),
+              label: 'Súper',
+            ),
+            BottomNavigationBarItem(
               icon: Icon(Icons.receipt_long_outlined),
               activeIcon: Icon(Icons.receipt_long),
               label: 'Gastos',
-            ),
-            BottomNavigationBarItem(
-              icon: Icon(Icons.savings_outlined),
-              activeIcon: Icon(Icons.savings),
-              label: 'Ahorros',
             ),
             BottomNavigationBarItem(
               icon: Icon(Icons.person_outline),

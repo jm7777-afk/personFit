@@ -4,7 +4,7 @@ import '../services/api_service.dart';
 import '../models/debt_model.dart';
 import '../widgets/debt_card.dart';
 import '../widgets/custom_dialogs.dart';
-import '../widgets/currency_calculator_dialog.dart';
+import '../widgets/standard_calculator_dialog.dart';
 
 class DebtsScreen extends StatefulWidget {
   const DebtsScreen({super.key});
@@ -157,10 +157,52 @@ class _DebtsScreenState extends State<DebtsScreen> with SingleTickerProviderStat
       appBar: AppBar(
         title: const Text('Deudas & Calendario'),
         actions: [
+          Padding(
+            padding: const EdgeInsets.only(right: 4),
+            child: ElevatedButton.icon(
+              onPressed: () {
+                CustomDialogs.showBorrowMoneyDialog(
+                  context: context,
+                  onConfirm: ({
+                    required creditor,
+                    required amount,
+                    required currency,
+                    required dueDate,
+                    required deductFromSalary,
+                    notes,
+                  }) async {
+                    await ApiService().createBorrowedMoney(
+                      creditor: creditor,
+                      amount: amount,
+                      currency: currency,
+                      dueDate: dueDate,
+                      deductFromSalary: deductFromSalary,
+                      notes: notes,
+                    );
+                    _loadData();
+                  },
+                );
+              },
+              icon: const Icon(Icons.handshake_outlined, size: 16),
+              label: const Text('Pedí Prestado', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFFEF4444),
+                foregroundColor: Colors.white,
+                elevation: 0,
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+              ),
+            ),
+          ),
           IconButton(
-            icon: const Icon(Icons.calculate_outlined, color: Color(0xFF10B981)),
-            tooltip: 'Calculadora de Divisas',
-            onPressed: () => CurrencyCalculatorDialog.show(context),
+            icon: const Icon(Icons.calculate_outlined, color: Color(0xFF6366F1)),
+            tooltip: 'Calculadora',
+            onPressed: () {
+              showDialog(
+                context: context,
+                builder: (_) => const StandardCalculatorDialog(),
+              );
+            },
           ),
         ],
         bottom: TabBar(
@@ -216,7 +258,7 @@ class _DebtsScreenState extends State<DebtsScreen> with SingleTickerProviderStat
                                   context: context,
                                   debt: debt,
                                   onConfirm: (amount, date, notes) async {
-                                    await ApiService().recordDebtPayment(debt.id, amount, date, notes);
+                                    await ApiService().recordDebtPayment(debt.id, amount, date, notes: notes);
                                     _loadData();
                                   },
                                 );

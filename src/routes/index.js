@@ -8,6 +8,9 @@ import savingsRoutes from './savingsRoutes.js';
 import dashboardRoutes from './dashboardRoutes.js';
 import notificationRoutes from './notificationRoutes.js';
 import exchangeRateRoutes from './exchangeRateRoutes.js';
+import groceryRoutes from './groceryRoutes.js';
+import payrollRoutes from './payrollRoutes.js';
+import shareRoutes from './shareRoutes.js';
 
 const apiRouter = Router();
 
@@ -20,5 +23,8 @@ apiRouter.use('/savings', savingsRoutes);
 apiRouter.use('/dashboard', dashboardRoutes);
 apiRouter.use('/notifications', notificationRoutes);
 apiRouter.use('/rates', exchangeRateRoutes);
+apiRouter.use('/groceries', groceryRoutes);
+apiRouter.use('/payroll', payrollRoutes);
+apiRouter.use('/profile', shareRoutes);
 
 export default apiRouter;

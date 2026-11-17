@@ -34,10 +34,12 @@ export class DebtRepository {
     const stmt = db.prepare(`
       INSERT INTO debts (
         title, creditor, total_amount, current_balance, monthly_payment,
-        interest_rate, due_day, next_due_date, status, notes, user_id
+        interest_rate, due_day, next_due_date, status, notes, user_id,
+        currency, deduct_from_salary, is_borrowed
       ) VALUES (
         @title, @creditor, @total_amount, @current_balance, @monthly_payment,
-        @interest_rate, @due_day, @next_due_date, @status, @notes, @user_id
+        @interest_rate, @due_day, @next_due_date, @status, @notes, @user_id,
+        @currency, @deduct_from_salary, @is_borrowed
       )
     `);
 
@@ -46,13 +48,16 @@ export class DebtRepository {
       creditor: data.creditor,
       total_amount: data.total_amount,
       current_balance: currentBalance,
-      monthly_payment: data.monthly_payment,
+      monthly_payment: data.monthly_payment || currentBalance,
       interest_rate: data.interest_rate || 0,
-      due_day: data.due_day,
-      next_due_date: data.next_due_date,
+      due_day: data.due_day || new Date().getDate(),
+      next_due_date: data.next_due_date || new Date().toISOString().split('T')[0],
       status: data.status || 'activa',
       notes: data.notes || null,
-      user_id: userId
+      user_id: userId,
+      currency: data.currency || 'USD',
+      deduct_from_salary: data.deduct_from_salary ? 1 : 0,
+      is_borrowed: data.is_borrowed ? 1 : 0
     });
 
     return this.findById(result.lastInsertRowid);
@@ -68,7 +73,8 @@ export class DebtRepository {
       SET title = @title, creditor = @creditor, total_amount = @total_amount,
           current_balance = @current_balance, monthly_payment = @monthly_payment,
           interest_rate = @interest_rate, due_day = @due_day,
-          next_due_date = @next_due_date, status = @status, notes = @notes
+          next_due_date = @next_due_date, status = @status, notes = @notes,
+          currency = @currency, deduct_from_salary = @deduct_from_salary, is_borrowed = @is_borrowed
       WHERE id = @id
     `);
 
@@ -83,7 +89,10 @@ export class DebtRepository {
       due_day: merged.due_day,
       next_due_date: merged.next_due_date,
       status: merged.status,
-      notes: merged.notes || null
+      notes: merged.notes,
+      currency: merged.currency || 'USD',
+      deduct_from_salary: merged.deduct_from_salary ? 1 : 0,
+      is_borrowed: merged.is_borrowed ? 1 : 0
     });
 
     return this.findById(id);

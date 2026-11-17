@@ -12,11 +12,93 @@ class AuthScreen extends StatefulWidget {
 class _AuthScreenState extends State<AuthScreen> {
   bool isLogin = true;
   bool isLoading = false;
+  bool rememberMe = true;
+  bool hasSavedCredentials = false;
   String? errorMessage;
 
   final nameController = TextEditingController();
   final emailController = TextEditingController();
   final passwordController = TextEditingController();
+
+  @override
+  void initState() {
+    super.initState();
+    _checkSavedSessionAndCredentials();
+  }
+
+  Future<void> _checkSavedSessionAndCredentials() async {
+    final creds = await ApiService().getSavedCredentials();
+    final savedEmail = creds['email'];
+    final savedPass = creds['password'];
+
+    if (savedEmail != null && savedEmail.isNotEmpty) {
+      if (mounted) {
+        setState(() {
+          hasSavedCredentials = true;
+          emailController.text = savedEmail;
+          if (savedPass != null) passwordController.text = savedPass;
+        });
+      }
+    }
+
+    // Comprobar si ya existe una sesión guardada válida
+    final hasActiveSession = await ApiService().loadSavedSession();
+    if (hasActiveSession && mounted) {
+      // Sesión guardada disponible para entrada rápida
+      setState(() => hasSavedCredentials = true);
+    }
+  }
+
+  Future<void> _loginWithBiometrics() async {
+    setState(() {
+      isLoading = true;
+      errorMessage = null;
+    });
+
+    try {
+      final hasActiveSession = await ApiService().loadSavedSession();
+      if (hasActiveSession) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Row(
+                children: [
+                  Icon(Icons.fingerprint, color: Colors.white),
+                  SizedBox(width: 8),
+                  Text('¡Acceso biométrico verificado exitosamente!'),
+                ],
+              ),
+              backgroundColor: Color(0xFF10B981),
+              duration: Duration(seconds: 1),
+            ),
+          );
+          Navigator.of(context).pushReplacement(
+            MaterialPageRoute(builder: (_) => const MainNavigation()),
+          );
+        }
+        return;
+      }
+
+      // Si no hay token en caché pero hay credenciales guardadas
+      final creds = await ApiService().getSavedCredentials();
+      final email = creds['email'];
+      final pass = creds['password'];
+      if (email != null && pass != null) {
+        await ApiService().login(email, pass, remember: true);
+        if (mounted) {
+          Navigator.of(context).pushReplacement(
+            MaterialPageRoute(builder: (_) => const MainNavigation()),
+          );
+        }
+      } else {
+        setState(() => errorMessage = 'No hay credenciales registradas para biometría. Inicia sesión primero.');
+      }
+    } catch (e) {
+      setState(() => errorMessage = 'Error biométrico: ${e.toString().replaceAll('Exception: ', '')}');
+    } finally {
+      if (mounted) setState(() => isLoading = false);
+    }
+  }
 
   Future<void> _submit() async {
     setState(() {
@@ -38,7 +120,7 @@ class _AuthScreenState extends State<AuthScreen> {
 
     try {
       if (isLogin) {
-        await ApiService().login(email, password);
+        await ApiService().login(email, password, remember: rememberMe);
       } else {
         await ApiService().register(name, email, password);
       }
@@ -89,14 +171,14 @@ class _AuthScreenState extends State<AuthScreen> {
                       fit: BoxFit.cover,
                       errorBuilder: (_, __, ___) => Container(
                         decoration: BoxDecoration(
-                          gradient: const LinearGradient(
-                            colors: [Color(0xFF10B981), Color(0xFF059669)],
-                            begin: Alignment.topLeft,
-                            end: Alignment.bottomRight,
-                          ),
+                          color: const Color(0xFF0F172A),
                           borderRadius: BorderRadius.circular(24),
                         ),
-                        child: const Icon(Icons.account_balance_wallet_rounded, size: 40, color: Colors.white),
+                        child: const Icon(
+                          Icons.account_balance_wallet,
+                          size: 44,
+                          color: Color(0xFF10B981),
+                        ),
                       ),
                     ),
                   ),
@@ -129,7 +211,10 @@ class _AuthScreenState extends State<AuthScreen> {
                     children: [
                       Expanded(
                         child: GestureDetector(
-                          onTap: () => setState(() => isLogin = true),
+                          onTap: () => setState(() {
+                            isLogin = true;
+                            errorMessage = null;
+                          }),
                           child: Container(
                             padding: const EdgeInsets.symmetric(vertical: 10),
                             decoration: BoxDecoration(
@@ -138,19 +223,19 @@ class _AuthScreenState extends State<AuthScreen> {
                               boxShadow: isLogin
                                   ? [
                                       BoxShadow(
-                                        color: Colors.black.withOpacity(0.04),
-                                        blurRadius: 6,
-                                      ),
+                                        color: Colors.black.withOpacity(0.05),
+                                        blurRadius: 8,
+                                        offset: const Offset(0, 2),
+                                      )
                                     ]
                                   : null,
                             ),
-                            child: Center(
-                              child: Text(
-                                'Iniciar Sesión',
-                                style: TextStyle(
-                                  fontWeight: isLogin ? FontWeight.bold : FontWeight.w500,
-                                  color: isLogin ? const Color(0xFF0F172A) : const Color(0xFF64748B),
-                                ),
+                            alignment: Alignment.center,
+                            child: Text(
+                              'Iniciar Sesión',
+                              style: TextStyle(
+                                fontWeight: FontWeight.bold,
+                                color: isLogin ? const Color(0xFF0F172A) : const Color(0xFF64748B),
                               ),
                             ),
                           ),
@@ -158,7 +243,10 @@ class _AuthScreenState extends State<AuthScreen> {
                       ),
                       Expanded(
                         child: GestureDetector(
-                          onTap: () => setState(() => isLogin = false),
+                          onTap: () => setState(() {
+                            isLogin = false;
+                            errorMessage = null;
+                          }),
                           child: Container(
                             padding: const EdgeInsets.symmetric(vertical: 10),
                             decoration: BoxDecoration(
@@ -167,19 +255,19 @@ class _AuthScreenState extends State<AuthScreen> {
                               boxShadow: !isLogin
                                   ? [
                                       BoxShadow(
-                                        color: Colors.black.withOpacity(0.04),
-                                        blurRadius: 6,
-                                      ),
+                                        color: Colors.black.withOpacity(0.05),
+                                        blurRadius: 8,
+                                        offset: const Offset(0, 2),
+                                      )
                                     ]
                                   : null,
                             ),
-                            child: Center(
-                              child: Text(
-                                'Crear Cuenta',
-                                style: TextStyle(
-                                  fontWeight: !isLogin ? FontWeight.bold : FontWeight.w500,
-                                  color: !isLogin ? const Color(0xFF0F172A) : const Color(0xFF64748B),
-                                ),
+                            alignment: Alignment.center,
+                            child: Text(
+                              'Crear Perfil',
+                              style: TextStyle(
+                                fontWeight: FontWeight.bold,
+                                color: !isLogin ? const Color(0xFF0F172A) : const Color(0xFF64748B),
                               ),
                             ),
                           ),
@@ -193,10 +281,11 @@ class _AuthScreenState extends State<AuthScreen> {
                 if (errorMessage != null)
                   Container(
                     margin: const EdgeInsets.only(bottom: 16),
-                    padding: const EdgeInsets.all(12),
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                     decoration: BoxDecoration(
-                      color: const Color(0xFFFEE2E2),
+                      color: const Color(0xFFFEF2F2),
                       borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: const Color(0xFFFCA5A5)),
                     ),
                     child: Row(
                       children: [
@@ -205,14 +294,13 @@ class _AuthScreenState extends State<AuthScreen> {
                         Expanded(
                           child: Text(
                             errorMessage!,
-                            style: const TextStyle(color: Color(0xFFB91C1C), fontSize: 13),
+                            style: const TextStyle(color: Color(0xFFDC2626), fontSize: 13),
                           ),
                         ),
                       ],
                     ),
                   ),
 
-                // Formulario
                 if (!isLogin) ...[
                   TextField(
                     controller: nameController,
@@ -223,6 +311,7 @@ class _AuthScreenState extends State<AuthScreen> {
                   ),
                   const SizedBox(height: 14),
                 ],
+
                 TextField(
                   controller: emailController,
                   keyboardType: TextInputType.emailAddress,
@@ -240,8 +329,27 @@ class _AuthScreenState extends State<AuthScreen> {
                     prefixIcon: Icon(Icons.lock_outline),
                   ),
                 ),
-                const SizedBox(height: 24),
+                const SizedBox(height: 8),
 
+                // CHECKBOX RECORDAR USUARIO
+                Row(
+                  children: [
+                    Checkbox(
+                      value: rememberMe,
+                      activeColor: const Color(0xFF10B981),
+                      onChanged: (val) {
+                        setState(() => rememberMe = val ?? true);
+                      },
+                    ),
+                    const Text(
+                      'Recordar usuario en este dispositivo',
+                      style: TextStyle(fontSize: 13, color: Color(0xFF475569)),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 16),
+
+                // Botón Iniciar Sesión / Crear Perfil
                 SizedBox(
                   width: double.infinity,
                   height: 52,
@@ -265,6 +373,30 @@ class _AuthScreenState extends State<AuthScreen> {
                           ),
                   ),
                 ),
+
+                // BOTÓN ACCESO BIOMÉTRICO (HUELLA DACTILAR / FACE ID)
+                if (hasSavedCredentials && isLogin) ...[
+                  const SizedBox(height: 12),
+                  SizedBox(
+                    width: double.infinity,
+                    height: 50,
+                    child: OutlinedButton.icon(
+                      onPressed: isLoading ? null : _loginWithBiometrics,
+                      icon: const Icon(Icons.fingerprint, color: Color(0xFF6366F1), size: 26),
+                      label: const Text(
+                        'Ingresar con Datos Biométricos (Huella)',
+                        style: TextStyle(color: Color(0xFF6366F1), fontWeight: FontWeight.bold, fontSize: 13),
+                      ),
+                      style: OutlinedButton.styleFrom(
+                        side: const BorderSide(color: Color(0xFF6366F1), width: 1.5),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(16),
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+
                 const SizedBox(height: 16),
                 TextButton(
                   onPressed: () {

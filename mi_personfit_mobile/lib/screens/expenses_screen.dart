@@ -78,16 +78,8 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
             context: context,
             categories: categories,
             onConfirm: (data) async {
-              final result = await ApiService().createExpense(data);
+              await ApiService().createExpense(data);
               _loadData();
-              if (result['warning'] != null && mounted) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    backgroundColor: const Color(0xFFDC2626),
-                    content: Text(result['warning']['message']),
-                  ),
-                );
-              }
             },
           );
         },
