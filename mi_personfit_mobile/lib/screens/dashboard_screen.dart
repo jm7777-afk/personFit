@@ -74,7 +74,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              user != null ? 'Hola, ${user.name.split(' ').first} 👋' : 'Mi PersonFit 💰',
+              user != null ? 'Hola, ${user.name.split(' ').first} 👋' : 'Kryon 💰',
               style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Color(0xFF0F172A)),
             ),
             const Text(

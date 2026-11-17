@@ -2,7 +2,7 @@
     package="com.personfit.mi_personfit_mobile">
     <uses-permission android:name="android.permission.INTERNET"/>
     <application
-        android:label="Mi PersonFit"
+        android:label="Kryon"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher">
         <activity

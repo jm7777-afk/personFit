@@ -123,12 +123,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          user?.name ?? 'Usuario Mi PersonFit',
+                          user?.name ?? 'Usuario Kryon',
                           style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Color(0xFF0F172A)),
                         ),
                         const SizedBox(height: 2),
                         Text(
-                          user?.email ?? 'usuario@personfit.com',
+                          user?.email ?? 'usuario@kryon.app',
                           style: const TextStyle(fontSize: 13, color: Color(0xFF64748B)),
                         ),
                         const SizedBox(height: 6),

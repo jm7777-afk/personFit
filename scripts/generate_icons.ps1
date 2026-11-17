@@ -1,6 +1,6 @@
 Add-Type -AssemblyName System.Drawing
 
-$srcPath = (Resolve-Path "WhatsApp Image 2026-11-16 at 7.17.52 PM.jpeg").Path
+$srcPath = (Resolve-Path "kryon.jpeg").Path
 $srcImg = [System.Drawing.Image]::FromFile($srcPath)
 
 $targets = @{

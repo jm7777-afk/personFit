@@ -103,7 +103,7 @@ class _AuthScreenState extends State<AuthScreen> {
                 ),
                 const SizedBox(height: 18),
                 const Text(
-                  'Mi PersonFit',
+                  'Kryon',
                   style: TextStyle(
                     fontSize: 28,
                     fontWeight: FontWeight.bold,
@@ -260,7 +260,7 @@ class _AuthScreenState extends State<AuthScreen> {
                             child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
                           )
                         : Text(
-                            isLogin ? 'Entrar a Mi PersonFit' : 'Crear Mi Perfil',
+                            isLogin ? 'Entrar a Kryon' : 'Crear Mi Perfil',
                             style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
                           ),
                   ),

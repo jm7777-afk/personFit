@@ -4,16 +4,16 @@ import 'screens/auth_screen.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
-  runApp(const MiPersonFitApp());
+  runApp(const KryonApp());
 }
 
-class MiPersonFitApp extends StatelessWidget {
-  const MiPersonFitApp({super.key});
+class KryonApp extends StatelessWidget {
+  const KryonApp({super.key});
 
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Mi PersonFit',
+      title: 'Kryon',
       debugShowCheckedModeBanner: false,
       theme: AppTheme.lightTheme,
       home: const AuthScreen(),
