@@ -30,6 +30,17 @@ export class ExpenseRepository {
       params.push(filters.type);
     }
 
+    if (filters.period) {
+      const p = String(filters.period).toLowerCase();
+      if (p === 'diario' || p === 'today') {
+        sql += " AND date(e.date) = date('now', 'localtime')";
+      } else if (p === 'semanal' || p === 'week') {
+        sql += " AND date(e.date) >= date('now', '-6 days', 'localtime')";
+      } else if (p === 'mensual' || p === 'month') {
+        sql += " AND strftime('%Y-%m', e.date) = strftime('%Y-%m', 'now', 'localtime')";
+      }
+    }
+
     sql += ' ORDER BY e.date DESC, e.created_at DESC';
     return db.prepare(sql).all(...params);
   }
@@ -47,9 +58,9 @@ export class ExpenseRepository {
   create(data) {
     const stmt = db.prepare(`
       INSERT INTO expenses (
-        title, amount, category_id, date, due_date, is_paid, payment_method, notes
+        title, amount, category_id, date, due_date, is_paid, payment_method, currency, notes, user_id
       ) VALUES (
-        @title, @amount, @category_id, @date, @due_date, @is_paid, @payment_method, @notes
+        @title, @amount, @category_id, @date, @due_date, @is_paid, @payment_method, @currency, @notes, @user_id
       )
     `);
 
@@ -61,7 +72,9 @@ export class ExpenseRepository {
       due_date: data.due_date || null,
       is_paid: data.is_paid !== undefined ? data.is_paid : 1,
       payment_method: data.payment_method || 'efectivo',
-      notes: data.notes || null
+      currency: data.currency || 'USD',
+      notes: data.notes || null,
+      user_id: data.user_id || null
     });
 
     return this.findById(result.lastInsertRowid);

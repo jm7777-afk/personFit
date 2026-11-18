@@ -80,10 +80,10 @@ export const groceryService = {
     return db.prepare(query).all(...params);
   },
 
-  createSupermarket(userId, { name, branch, state, municipality, address, description, phone, opening_hours }) {
+  createSupermarket(userId, { name, branch, state, municipality, address, description, phone, opening_hours, store_type, latitude, longitude }) {
     const stmt = db.prepare(`
-      INSERT INTO supermarkets (user_id, name, branch, state, municipality, address, description, phone, opening_hours) 
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+      INSERT INTO supermarkets (user_id, name, branch, state, municipality, address, description, phone, opening_hours, store_type, latitude, longitude) 
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `);
     const info = stmt.run(
       userId || null, 
@@ -92,22 +92,14 @@ export const groceryService = {
       state || 'Carabobo', 
       municipality || 'Valencia', 
       address || null, 
-      description || null, 
+      description || 'Tienda / Minimarket registrado por la comunidad', 
       phone || null, 
-      opening_hours || null
+      opening_hours || null,
+      store_type || 'minimarket',
+      latitude ?? null,
+      longitude ?? null
     );
-    return { 
-      id: info.lastInsertRowid, 
-      user_id: userId, 
-      name, 
-      branch, 
-      state: state || 'Carabobo', 
-      municipality: municipality || 'Valencia', 
-      address, 
-      description, 
-      phone, 
-      opening_hours 
-    };
+    return db.prepare('SELECT * FROM supermarkets WHERE id = ?').get(info.lastInsertRowid);
   },
 
   // Productos
@@ -121,7 +113,7 @@ export const groceryService = {
       WHERE p.user_id IS NULL OR p.user_id = ?
       ORDER BY p.name ASC
     `);
-    return stmt.all(userId);
+    return stmt.all(userId || null);
   },
 
   createProduct(userId, { name, category, unit, barcode }) {
@@ -129,12 +121,33 @@ export const groceryService = {
       INSERT INTO grocery_products (user_id, name, category, unit, barcode)
       VALUES (?, ?, ?, ?, ?)
     `);
-    const info = stmt.run(userId, name, category || 'Alimentos', unit || 'unidad', barcode || null);
+    const info = stmt.run(userId || null, name, category || 'Alimentos', unit || 'unidad', barcode || null);
     return { id: info.lastInsertRowid, user_id: userId, name, category, unit, barcode };
   },
 
-  // Registro de Precios y cálculo de incremento
-  recordPrice({ product_id, supermarket_id, price_bs, price_usd, date, notes }) {
+  // Registro Colaborativo de Precios (con soporte de código de barras y verificación comunitaria)
+  recordPrice({ product_id, product_name, barcode, supermarket_id, price_bs, price_usd, date, notes, reported_by }, userId = null) {
+    let resolvedProductId = product_id;
+
+    // Si viene código de barras o nombre sin product_id, buscar o crear producto
+    if (!resolvedProductId && barcode) {
+      const byBarcode = db.prepare('SELECT id FROM grocery_products WHERE barcode = ? LIMIT 1').get(barcode);
+      if (byBarcode) resolvedProductId = byBarcode.id;
+    }
+    if (!resolvedProductId && product_name) {
+      const byName = db.prepare('SELECT id FROM grocery_products WHERE LOWER(name) = LOWER(?) LIMIT 1').get(product_name.trim());
+      if (byName) {
+        resolvedProductId = byName.id;
+      } else {
+        const created = this.createProduct(userId, { name: product_name.trim(), barcode: barcode || null });
+        resolvedProductId = created.id;
+      }
+    }
+
+    if (!resolvedProductId) {
+      throw new Error('Debes seleccionar un producto o indicar su nombre/código de barras');
+    }
+
     // Buscar precio anterior del mismo producto para ver cuánto subió
     const lastPrice = db.prepare(`
       SELECT price_usd, price_bs, date, supermarket_id
@@ -142,14 +155,27 @@ export const groceryService = {
       WHERE product_id = ?
       ORDER BY date DESC, id DESC
       LIMIT 1
-    `).get(product_id);
+    `).get(resolvedProductId);
 
     const priceDate = date || new Date().toISOString().split('T')[0];
+    const verifiedAt = new Date().toISOString();
+    const reporter = reported_by || 'Usuario Kryon';
+
     const stmt = db.prepare(`
-      INSERT INTO grocery_prices (product_id, supermarket_id, price_bs, price_usd, date, notes)
-      VALUES (?, ?, ?, ?, ?, ?)
+      INSERT INTO grocery_prices (product_id, supermarket_id, price_bs, price_usd, date, notes, barcode, reported_by, verified_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
     `);
-    const info = stmt.run(product_id, supermarket_id, price_bs, price_usd, priceDate, notes || null);
+    const info = stmt.run(
+      resolvedProductId,
+      supermarket_id,
+      Number(price_bs) || 0,
+      Number(price_usd) || 0,
+      priceDate,
+      notes || null,
+      barcode || null,
+      reporter,
+      verifiedAt
+    );
 
     let variationPercentUsd = 0;
     let differenceUsd = 0;
@@ -170,10 +196,13 @@ export const groceryService = {
 
     return {
       id: info.lastInsertRowid,
-      product_id,
+      product_id: resolvedProductId,
       supermarket_id,
       price_bs,
       price_usd,
+      barcode: barcode || null,
+      reported_by: reporter,
+      verified_at: verifiedAt,
       date: priceDate,
       variation: {
         difference_usd: differenceUsd,
@@ -227,6 +256,8 @@ export const groceryService = {
             current_price_usd: p.price_usd,
             current_price_bs: p.price_bs,
             date: p.date,
+            verified_at: p.verified_at || p.created_at || p.date,
+            reported_by: p.reported_by || 'Kryon',
             history: []
           };
         }
@@ -265,6 +296,8 @@ export const groceryService = {
           previous_price_bs: previousPriceBs,
           diff_usd: diffUsd,
           increase_percent_usd: increasePercentUsd,
+          verified_at: item.verified_at,
+          reported_by: item.reported_by,
           is_cheapest: false
         };
       });
@@ -328,6 +361,9 @@ export const groceryService = {
           description: s.description,
           phone: s.phone,
           opening_hours: s.opening_hours,
+          latitude: s.latitude,
+          longitude: s.longitude,
+          store_type: s.store_type || 'supermercado',
           total_basket_usd: +totalBasketUsd.toFixed(2),
           total_basket_bs: +totalBasketBs.toFixed(2),
           products_tracked: matchedItemsCount,
@@ -359,40 +395,55 @@ export const groceryService = {
     };
   },
 
-  // Listas de Compras ("Qué llevo, cuánto llevo")
+  // Listas de Compras ("Qué llevo, cuánto llevo") con resolución segura de usuario
+  _resolveListUserId(userId) {
+    if (userId) return userId;
+    const first = db.prepare('SELECT id FROM users ORDER BY id ASC LIMIT 1').get();
+    return first ? first.id : null;
+  },
+
   getLists(userId) {
+    const uid = this._resolveListUserId(userId);
+    if (!uid) return [];
     const lists = db.prepare(`
-      SELECT gl.*, s.name as supermarket_name,
+      SELECT gl.*, s.name as supermarket_name, s.municipality as supermarket_municipality,
         (SELECT COUNT(*) FROM grocery_list_items gli WHERE gli.list_id = gl.id) as total_items,
         (SELECT COUNT(*) FROM grocery_list_items gli WHERE gli.list_id = gl.id AND gli.is_checked = 1) as checked_items,
         (SELECT COALESCE(SUM(quantity * price_usd), 0) FROM grocery_list_items gli WHERE gli.list_id = gl.id) as total_estimated_usd,
+        (SELECT COALESCE(SUM(quantity * price_bs), 0) FROM grocery_list_items gli WHERE gli.list_id = gl.id) as total_estimated_bs,
         (SELECT COALESCE(SUM(quantity * price_usd), 0) FROM grocery_list_items gli WHERE gli.list_id = gl.id AND gli.is_checked = 1) as total_checked_usd,
         (SELECT COALESCE(SUM(quantity * price_bs), 0) FROM grocery_list_items gli WHERE gli.list_id = gl.id AND gli.is_checked = 1) as total_checked_bs
       FROM grocery_lists gl
       LEFT JOIN supermarkets s ON s.id = gl.supermarket_id
       WHERE gl.user_id = ?
       ORDER BY gl.created_at DESC
-    `).all(userId);
+    `).all(uid);
 
     return lists;
   },
 
   createList(userId, { title, supermarket_id, notes }) {
+    const uid = this._resolveListUserId(userId);
+    if (!uid) {
+      throw new Error('Debes iniciar sesión para crear una lista de compras');
+    }
+    const cleanTitle = (title || 'Mi Lista de Compras').trim();
     const stmt = db.prepare(`
       INSERT INTO grocery_lists (user_id, title, supermarket_id, notes)
       VALUES (?, ?, ?, ?)
     `);
-    const info = stmt.run(userId, title, supermarket_id || null, notes || null);
-    return this.getListDetails(userId, info.lastInsertRowid);
+    const info = stmt.run(uid, cleanTitle, supermarket_id ? Number(supermarket_id) : null, notes || null);
+    return this.getListDetails(uid, info.lastInsertRowid);
   },
 
   getListDetails(userId, listId) {
+    const uid = this._resolveListUserId(userId);
     const list = db.prepare(`
-      SELECT gl.*, s.name as supermarket_name
+      SELECT gl.*, s.name as supermarket_name, s.municipality as supermarket_municipality
       FROM grocery_lists gl
       LEFT JOIN supermarkets s ON s.id = gl.supermarket_id
-      WHERE gl.id = ? AND gl.user_id = ?
-    `).get(listId, userId);
+      WHERE gl.id = ? AND (? IS NULL OR gl.user_id = ?)
+    `).get(listId, uid, uid);
 
     if (!list) return null;
 

@@ -3,12 +3,13 @@ import { expenseService } from '../services/expenseService.js';
 export class ExpenseController {
   getAll = (req, res, next) => {
     try {
-      const { month, category_id, is_paid, type } = req.query;
+      const { month, category_id, is_paid, type, period } = req.query;
       const data = expenseService.getAllExpenses({
         month,
         category_id: category_id ? Number(category_id) : undefined,
         is_paid: is_paid !== undefined ? Number(is_paid) : undefined,
-        type
+        type,
+        period
       });
       res.status(200).json({ status: 'success', results: data.length, data });
     } catch (err) {
@@ -27,7 +28,7 @@ export class ExpenseController {
 
   create = (req, res, next) => {
     try {
-      const result = expenseService.createExpense(req.body);
+      const result = expenseService.createExpense({ ...req.body, user_id: req.user?.id || null });
       res.status(201).json({
         status: 'success',
         message: 'Gasto registrado',

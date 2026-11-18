@@ -4,6 +4,7 @@ import '../services/api_service.dart';
 import '../models/dashboard_model.dart';
 import '../models/exchange_rate_model.dart';
 import '../models/payroll_model.dart';
+import '../models/wallet_model.dart';
 import '../widgets/metric_card.dart';
 import '../widgets/health_score_gauge.dart';
 import '../widgets/custom_dialogs.dart';
@@ -11,6 +12,10 @@ import '../widgets/exchange_rate_ticker.dart';
 import '../widgets/payroll_card.dart';
 import '../widgets/payroll_calendar_dialog.dart';
 import '../widgets/standard_calculator_dialog.dart';
+import '../widgets/wallets_section_widget.dart';
+import '../widgets/payment_advisor_dialog.dart';
+import '../widgets/cashea_installments_dialog.dart';
+import 'user_guide_screen.dart';
 
 class DashboardScreen extends StatefulWidget {
   final VoidCallback onNavigateToDebts;
@@ -32,6 +37,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
   DashboardModel? dashboard;
   ExchangeRatesSummaryModel? exchangeRates;
   PayrollSummary? payroll;
+  WalletsSummaryModel? walletsSummary;
   bool showInBs = false;
   bool isLoading = true;
   String? error;
@@ -61,11 +67,17 @@ class _DashboardScreenState extends State<DashboardScreen> {
         payrollSummary = await ApiService().getPayrollSummary();
       } catch (_) {}
 
+      WalletsSummaryModel? wallets;
+      try {
+        wallets = await ApiService().getWallets();
+      } catch (_) {}
+
       if (mounted) {
         setState(() {
           dashboard = data;
           exchangeRates = rates;
           payroll = payrollSummary;
+          walletsSummary = wallets;
           showInBs = ApiService().showInBs;
         });
       }
@@ -140,6 +152,17 @@ class _DashboardScreenState extends State<DashboardScreen> {
               showDialog(
                 context: context,
                 builder: (_) => const StandardCalculatorDialog(),
+              );
+            },
+          ),
+          // Guía de Usuario para Nuevos Usuarios
+          IconButton(
+            icon: const Icon(Icons.help_outline, color: Color(0xFF0EA5E9)),
+            tooltip: 'Guía Rápida de Kryon',
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const UserGuideScreen()),
               );
             },
           ),
@@ -305,8 +328,102 @@ class _DashboardScreenState extends State<DashboardScreen> {
                             ),
                             const SizedBox(height: 18),
 
-                            // Ticker de Tasas de Cambio en Venezuela (BCV & Paralelo)
+                            // Ticker de Tasas de Cambio en Venezuela (BCV, Euro, USDT, Paralelo)
                             ExchangeRateTicker(rates: exchangeRates),
+                            const SizedBox(height: 16),
+
+                            // ACCESOS RÁPIDOS VENEZUELA PRO: ¿Bs o $ hoy? | Cuotas Cashea | Guía
+                            Row(
+                              children: [
+                                Expanded(
+                                  child: InkWell(
+                                    onTap: () => PaymentAdvisorDialog.show(context, rates: exchangeRates),
+                                    borderRadius: BorderRadius.circular(14),
+                                    child: Container(
+                                      padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 10),
+                                      decoration: BoxDecoration(
+                                        gradient: const LinearGradient(colors: [Color(0xFF065F46), Color(0xFF059669)]),
+                                        borderRadius: BorderRadius.circular(14),
+                                      ),
+                                      child: const Column(
+                                        children: [
+                                          Icon(Icons.balance, color: Color(0xFFFDE047), size: 20),
+                                          SizedBox(height: 4),
+                                          Text(
+                                            '¿Bs o \$ hoy?',
+                                            style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 11),
+                                            textAlign: TextAlign.center,
+                                          ),
+                                          Text('Brecha + IGTF', style: TextStyle(color: Color(0xFFD1FAE5), fontSize: 9)),
+                                        ],
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                                const SizedBox(width: 8),
+                                Expanded(
+                                  child: InkWell(
+                                    onTap: () => CasheaInstallmentsDialog.show(context, onChanged: _loadDashboard),
+                                    borderRadius: BorderRadius.circular(14),
+                                    child: Container(
+                                      padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 10),
+                                      decoration: BoxDecoration(
+                                        gradient: const LinearGradient(colors: [Color(0xFFB45309), Color(0xFFF59E0B)]),
+                                        borderRadius: BorderRadius.circular(14),
+                                      ),
+                                      child: const Column(
+                                        children: [
+                                          Icon(Icons.calendar_month, color: Colors.white, size: 20),
+                                          SizedBox(height: 4),
+                                          Text(
+                                            'Cuotas Cashea',
+                                            style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 11),
+                                            textAlign: TextAlign.center,
+                                          ),
+                                          Text('Cada 14 días', style: TextStyle(color: Color(0xFFFEF3C7), fontSize: 9)),
+                                        ],
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                                const SizedBox(width: 8),
+                                Expanded(
+                                  child: InkWell(
+                                    onTap: () => Navigator.push(
+                                      context,
+                                      MaterialPageRoute(builder: (_) => const UserGuideScreen()),
+                                    ),
+                                    borderRadius: BorderRadius.circular(14),
+                                    child: Container(
+                                      padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 10),
+                                      decoration: BoxDecoration(
+                                        gradient: const LinearGradient(colors: [Color(0xFF1E3A8A), Color(0xFF3B82F6)]),
+                                        borderRadius: BorderRadius.circular(14),
+                                      ),
+                                      child: const Column(
+                                        children: [
+                                          Icon(Icons.menu_book, color: Colors.white, size: 20),
+                                          SizedBox(height: 4),
+                                          Text(
+                                            'Guía Kryon',
+                                            style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 11),
+                                            textAlign: TextAlign.center,
+                                          ),
+                                          Text('Paso a paso', style: TextStyle(color: Color(0xFFDBEAFE), fontSize: 9)),
+                                        ],
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 18),
+
+                            // BILLETERAS VENEZOLANAS (BS, EFECTIVO $, BINANCE USDT, ZELLE, ZINLI, EURO)
+                            WalletsSectionWidget(
+                              summary: walletsSummary,
+                              onUpdated: _loadDashboard,
+                            ),
                             const SizedBox(height: 18),
 
                             // CONTROL DE NÓMINA, CONTADOR DE DÍAS Y SUELDO RESTANTE SIN COBRAR

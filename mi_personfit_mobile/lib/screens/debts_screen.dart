@@ -5,6 +5,7 @@ import '../models/debt_model.dart';
 import '../widgets/debt_card.dart';
 import '../widgets/custom_dialogs.dart';
 import '../widgets/standard_calculator_dialog.dart';
+import '../widgets/cashea_installments_dialog.dart';
 
 class DebtsScreen extends StatefulWidget {
   const DebtsScreen({super.key});
@@ -54,6 +55,8 @@ class _DebtsScreenState extends State<DebtsScreen> with SingleTickerProviderStat
     final totalController = TextEditingController();
     final paymentController = TextEditingController();
     final interestController = TextEditingController(text: '0');
+    final paymentDetailsController = TextEditingController();
+    String paymentMethodType = 'Pago Móvil';
     final today = DateTime.now().toIso8601String().split('T')[0];
 
     showModalBottomSheet(
@@ -63,86 +66,126 @@ class _DebtsScreenState extends State<DebtsScreen> with SingleTickerProviderStat
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
       ),
-      builder: (ctx) => Padding(
-        padding: EdgeInsets.only(
-          left: 24,
-          right: 24,
-          top: 24,
-          bottom: MediaQuery.of(ctx).viewInsets.bottom + 24,
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text(
-              'Registrar Nueva Deuda / Pasivo',
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 18),
-            TextField(
-              controller: titleController,
-              decoration: const InputDecoration(labelText: 'Nombre (ej. Tarjeta Oro, Préstamo Auto)'),
-            ),
-            const SizedBox(height: 12),
-            TextField(
-              controller: creditorController,
-              decoration: const InputDecoration(labelText: 'Acreedor o Banco'),
-            ),
-            const SizedBox(height: 12),
-            Row(
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setModalState) => Padding(
+          padding: EdgeInsets.only(
+            left: 24,
+            right: 24,
+            top: 24,
+            bottom: MediaQuery.of(ctx).viewInsets.bottom + 24,
+          ),
+          child: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Expanded(
-                  child: TextField(
-                    controller: totalController,
-                    keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                    decoration: const InputDecoration(labelText: 'Monto Total (\$)'),
+                const Text(
+                  'Registrar Nueva Deuda / Pasivo',
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                ),
+                const SizedBox(height: 14),
+                TextField(
+                  controller: titleController,
+                  decoration: const InputDecoration(labelText: 'Nombre (ej. Tarjeta Oro, Préstamo Auto)'),
+                ),
+                const SizedBox(height: 10),
+                TextField(
+                  controller: creditorController,
+                  decoration: const InputDecoration(labelText: 'Acreedor o Banco'),
+                ),
+                const SizedBox(height: 10),
+                Row(
+                  children: [
+                    Expanded(
+                      child: TextField(
+                        controller: totalController,
+                        keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                        decoration: const InputDecoration(labelText: 'Monto Total (\$)'),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: TextField(
+                        controller: paymentController,
+                        keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                        decoration: const InputDecoration(labelText: 'Cuota Mensual (\$)'),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 10),
+                TextField(
+                  controller: interestController,
+                  keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                  decoration: const InputDecoration(labelText: 'Tasa de Interés Anual (%)'),
+                ),
+                const SizedBox(height: 12),
+                const Text(
+                  'Método de Pago del Acreedor (Para Copiar y Pegar)',
+                  style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Color(0xFF4F46E5)),
+                ),
+                const SizedBox(height: 8),
+                DropdownButtonFormField<String>(
+                  initialValue: paymentMethodType,
+                  decoration: const InputDecoration(
+                    labelText: 'Tipo de Pago',
+                    prefixIcon: Icon(Icons.payment),
+                  ),
+                  items: const [
+                    DropdownMenuItem(value: 'Pago Móvil', child: Text('Pago Móvil (Bs)')),
+                    DropdownMenuItem(value: 'Zelle', child: Text('Zelle')),
+                    DropdownMenuItem(value: 'Binance Pay', child: Text('Binance Pay / USDT')),
+                    DropdownMenuItem(value: 'Transferencia', child: Text('Transferencia Bancaria')),
+                    DropdownMenuItem(value: 'Zinli / Wally', child: Text('Zinli / Wally')),
+                    DropdownMenuItem(value: 'Efectivo', child: Text('Efectivo \$')),
+                  ],
+                  onChanged: (v) => setModalState(() => paymentMethodType = v ?? 'Pago Móvil'),
+                ),
+                const SizedBox(height: 10),
+                TextField(
+                  controller: paymentDetailsController,
+                  maxLines: 2,
+                  decoration: const InputDecoration(
+                    labelText: 'Datos para copiar y pegar (Banco, Teléfono, Cédula o Correo)',
+                    hintText: 'Ej: Banesco (0134) | 0414-1234567 | V-20.123.456',
+                    prefixIcon: Icon(Icons.copy_all),
                   ),
                 ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: TextField(
-                    controller: paymentController,
-                    keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                    decoration: const InputDecoration(labelText: 'Cuota Mensual (\$)'),
+                const SizedBox(height: 18),
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton(
+                    onPressed: () async {
+                      final total = double.tryParse(totalController.text) ?? 0;
+                      final payment = double.tryParse(paymentController.text) ?? 0;
+                      final interest = double.tryParse(interestController.text) ?? 0;
+
+                      if (titleController.text.isEmpty || total <= 0) return;
+
+                      await ApiService().createDebt({
+                        'title': titleController.text,
+                        'creditor': creditorController.text.isNotEmpty ? creditorController.text : 'Particular',
+                        'total_amount': total,
+                        'current_balance': total,
+                        'monthly_payment': payment > 0 ? payment : total * 0.1,
+                        'interest_rate': interest,
+                        'due_day': DateTime.now().day,
+                        'next_due_date': today,
+                        'payment_method_type': paymentMethodType,
+                        'payment_details': paymentDetailsController.text.trim().isEmpty
+                            ? null
+                            : paymentDetailsController.text.trim(),
+                      });
+
+                      if (mounted) Navigator.pop(ctx);
+                      _loadData();
+                    },
+                    child: const Text('Registrar Deuda'),
                   ),
                 ),
               ],
             ),
-            const SizedBox(height: 12),
-            TextField(
-              controller: interestController,
-              keyboardType: const TextInputType.numberWithOptions(decimal: true),
-              decoration: const InputDecoration(labelText: 'Tasa de Interés Anual (%)'),
-            ),
-            const SizedBox(height: 20),
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton(
-                onPressed: () async {
-                  final total = double.tryParse(totalController.text) ?? 0;
-                  final payment = double.tryParse(paymentController.text) ?? 0;
-                  final interest = double.tryParse(interestController.text) ?? 0;
-
-                  if (titleController.text.isEmpty || total <= 0) return;
-
-                  await ApiService().createDebt({
-                    'title': titleController.text,
-                    'creditor': creditorController.text.isNotEmpty ? creditorController.text : 'Particular',
-                    'total_amount': total,
-                    'current_balance': total,
-                    'monthly_payment': payment > 0 ? payment : total * 0.1,
-                    'interest_rate': interest,
-                    'due_day': DateTime.now().day,
-                    'next_due_date': today,
-                  });
-
-                  if (mounted) Navigator.pop(ctx);
-                  _loadData();
-                },
-                child: const Text('Registrar Deuda'),
-              ),
-            ),
-          ],
+          ),
         ),
       ),
     );
@@ -155,8 +198,13 @@ class _DebtsScreenState extends State<DebtsScreen> with SingleTickerProviderStat
     return Scaffold(
       backgroundColor: const Color(0xFFF8FAFC),
       appBar: AppBar(
-        title: const Text('Deudas & Calendario'),
+        title: const Text('Deudas & Cuotas'),
         actions: [
+          IconButton(
+            icon: const Icon(Icons.calendar_month, color: Color(0xFFF59E0B)),
+            tooltip: 'Cuotas Cashea / Krece',
+            onPressed: () => CasheaInstallmentsDialog.show(context, onChanged: _loadData),
+          ),
           Padding(
             padding: const EdgeInsets.only(right: 4),
             child: ElevatedButton.icon(

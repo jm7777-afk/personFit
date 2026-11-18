@@ -35,11 +35,11 @@ export class DebtRepository {
       INSERT INTO debts (
         title, creditor, total_amount, current_balance, monthly_payment,
         interest_rate, due_day, next_due_date, status, notes, user_id,
-        currency, deduct_from_salary, is_borrowed
+        currency, deduct_from_salary, is_borrowed, payment_method_type, payment_details
       ) VALUES (
         @title, @creditor, @total_amount, @current_balance, @monthly_payment,
         @interest_rate, @due_day, @next_due_date, @status, @notes, @user_id,
-        @currency, @deduct_from_salary, @is_borrowed
+        @currency, @deduct_from_salary, @is_borrowed, @payment_method_type, @payment_details
       )
     `);
 
@@ -57,7 +57,9 @@ export class DebtRepository {
       user_id: userId,
       currency: data.currency || 'USD',
       deduct_from_salary: data.deduct_from_salary ? 1 : 0,
-      is_borrowed: data.is_borrowed ? 1 : 0
+      is_borrowed: data.is_borrowed ? 1 : 0,
+      payment_method_type: data.payment_method_type || 'Pago Móvil',
+      payment_details: data.payment_details || null
     });
 
     return this.findById(result.lastInsertRowid);
@@ -74,7 +76,9 @@ export class DebtRepository {
           current_balance = @current_balance, monthly_payment = @monthly_payment,
           interest_rate = @interest_rate, due_day = @due_day,
           next_due_date = @next_due_date, status = @status, notes = @notes,
-          currency = @currency, deduct_from_salary = @deduct_from_salary, is_borrowed = @is_borrowed
+          currency = @currency, deduct_from_salary = @deduct_from_salary,
+          is_borrowed = @is_borrowed, payment_method_type = @payment_method_type,
+          payment_details = @payment_details
       WHERE id = @id
     `);
 
@@ -92,7 +96,9 @@ export class DebtRepository {
       notes: merged.notes,
       currency: merged.currency || 'USD',
       deduct_from_salary: merged.deduct_from_salary ? 1 : 0,
-      is_borrowed: merged.is_borrowed ? 1 : 0
+      is_borrowed: merged.is_borrowed ? 1 : 0,
+      payment_method_type: merged.payment_method_type || 'Pago Móvil',
+      payment_details: merged.payment_details || null
     });
 
     return this.findById(id);

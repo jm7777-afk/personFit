@@ -5,6 +5,7 @@ import '../models/notification_model.dart';
 import '../widgets/share_profile_dialog.dart';
 import '../widgets/standard_calculator_dialog.dart';
 import 'auth_screen.dart';
+import 'user_guide_screen.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -89,6 +90,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
       appBar: AppBar(
         title: const Text('Mi Perfil & Recordatorios'),
         actions: [
+          IconButton(
+            icon: const Icon(Icons.help_outline, color: Color(0xFF0EA5E9)),
+            onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const UserGuideScreen())),
+            tooltip: 'Guía Rápida de Kryon',
+          ),
           IconButton(
             icon: const Icon(Icons.settings_outlined),
             onPressed: _showChangeServerUrlDialog,

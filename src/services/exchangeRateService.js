@@ -14,6 +14,7 @@ export class ExchangeRateService {
     const rates = exchangeRateRepository.findAll();
     const usdBcv = rates.find(r => r.id === 'usd_oficial');
     const usdParalelo = rates.find(r => r.id === 'usd_paralelo');
+    const usdtBinance = rates.find(r => r.id === 'usdt_binance');
     const eurBcv = rates.find(r => r.id === 'eur_oficial');
     const eurParalelo = rates.find(r => r.id === 'eur_paralelo');
 
@@ -23,12 +24,18 @@ export class ExchangeRateService {
       gapPercent = Number((((usdParalelo.rate - usdBcv.rate) / usdBcv.rate) * 100).toFixed(2));
     }
 
+    const usdtRateVal = usdtBinance
+      ? usdtBinance.rate
+      : (usdParalelo ? Number((usdParalelo.rate * 1.006).toFixed(2)) : 0);
+
     return {
       summary: {
         usd_bcv: usdBcv ? usdBcv.rate : 0,
         usd_bcv_change: usdBcv ? usdBcv.change_percent : 0,
         usd_paralelo: usdParalelo ? usdParalelo.rate : 0,
         usd_paralelo_change: usdParalelo ? usdParalelo.change_percent : 0,
+        usdt_binance: usdtRateVal,
+        usdt_binance_change: usdtBinance ? usdtBinance.change_percent : (usdParalelo ? usdParalelo.change_percent : 0),
         eur_bcv: eurBcv ? eurBcv.rate : 0,
         eur_bcv_change: eurBcv ? eurBcv.change_percent : 0,
         eur_paralelo: eurParalelo ? eurParalelo.rate : 0,

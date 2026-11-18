@@ -17,6 +17,7 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
   List<CategoryModel> categories = [];
   bool isLoading = true;
   String selectedFilter = 'todos'; // 'todos', 'servicios', 'compras', 'pendientes'
+  String selectedPeriod = 'mensual'; // 'diario', 'semanal', 'mensual', 'todos'
 
   @override
   void initState() {
@@ -39,7 +40,11 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
         typeParam = 'compra';
       }
 
-      final exp = await ApiService().getExpenses(isPaid: isPaidParam, type: typeParam);
+      final exp = await ApiService().getExpenses(
+        isPaid: isPaidParam,
+        type: typeParam,
+        period: selectedPeriod == 'todos' ? null : selectedPeriod,
+      );
 
       if (mounted) {
         setState(() {
@@ -54,16 +59,31 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
     }
   }
 
+  String _periodLabel() {
+    switch (selectedPeriod) {
+      case 'diario':
+        return 'Hoy (Diario)';
+      case 'semanal':
+        return 'Últimos 7 días (Semanal)';
+      case 'mensual':
+        return 'Este Mes (Mensual)';
+      default:
+        return 'Histórico Total';
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
-    final currency = NumberFormat.currency(symbol: '\$', decimalDigits: 0);
+    final currency = NumberFormat.currency(symbol: '\$', decimalDigits: 2);
+    final bsFmt = NumberFormat('#,##0.00', 'es_VE');
+    final bcvRate = ApiService().activeBcvRate;
     final totalSpent = expenses.where((e) => e.isPaid).fold<double>(0.0, (acc, e) => acc + e.amount);
     final pendingTotal = expenses.where((e) => !e.isPaid).fold<double>(0.0, (acc, e) => acc + e.amount);
 
     return Scaffold(
       backgroundColor: const Color(0xFFF8FAFC),
       appBar: AppBar(
-        title: const Text('Compras & Servicios'),
+        title: const Text('Gastos & Servicios'),
         actions: [
           IconButton(
             icon: const Icon(Icons.calculate_outlined, color: Color(0xFF10B981)),
@@ -90,9 +110,26 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
       ),
       body: Column(
         children: [
-          // Banner de totales del mes
+          // Selector de Control Diario, Semanal y Mensual
           Container(
-            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+            padding: const EdgeInsets.fromLTRB(16, 10, 16, 10),
+            color: Colors.white,
+            child: Row(
+              children: [
+                _buildPeriodTab('Hoy', 'diario'),
+                const SizedBox(width: 6),
+                _buildPeriodTab('Semana', 'semanal'),
+                const SizedBox(width: 6),
+                _buildPeriodTab('Mes', 'mensual'),
+                const SizedBox(width: 6),
+                _buildPeriodTab('Todo', 'todos'),
+              ],
+            ),
+          ),
+
+          // Banner de totales del periodo en USD y Bs
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
             color: Colors.white,
             child: Row(
               children: [
@@ -100,8 +137,9 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const Text('Total Pagado', style: TextStyle(fontSize: 11, color: Color(0xFF64748B))),
+                      Text('Pagado • ${_periodLabel()}', style: const TextStyle(fontSize: 11, color: Color(0xFF64748B))),
                       Text(currency.format(totalSpent), style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: Color(0xFF0F172A))),
+                      Text('≈ Bs. ${bsFmt.format(totalSpent * bcvRate)}', style: const TextStyle(fontSize: 11, color: Color(0xFF10B981), fontWeight: FontWeight.w600)),
                     ],
                   ),
                 ),
@@ -111,6 +149,7 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
                     children: [
                       const Text('Facturas por Pagar', style: TextStyle(fontSize: 11, color: Color(0xFF64748B))),
                       Text(currency.format(pendingTotal), style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: Color(0xFFEF4444))),
+                      Text('≈ Bs. ${bsFmt.format(pendingTotal * bcvRate)}', style: const TextStyle(fontSize: 11, color: Color(0xFFEF4444))),
                     ],
                   ),
                 ),
@@ -245,6 +284,35 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
                   ),
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildPeriodTab(String label, String value) {
+    final isSelected = selectedPeriod == value;
+    return Expanded(
+      child: InkWell(
+        onTap: () {
+          setState(() => selectedPeriod = value);
+          _loadData();
+        },
+        borderRadius: BorderRadius.circular(10),
+        child: Container(
+          padding: const EdgeInsets.symmetric(vertical: 8),
+          alignment: Alignment.center,
+          decoration: BoxDecoration(
+            color: isSelected ? const Color(0xFF6366F1) : const Color(0xFFF1F5F9),
+            borderRadius: BorderRadius.circular(10),
+          ),
+          child: Text(
+            label,
+            style: TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.bold,
+              color: isSelected ? Colors.white : const Color(0xFF475569),
+            ),
+          ),
+        ),
       ),
     );
   }

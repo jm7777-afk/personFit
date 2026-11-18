@@ -110,8 +110,22 @@ class CustomDialogs {
     final amountController = TextEditingController();
     final today = DateTime.now().toIso8601String().split('T')[0];
     int selectedCategoryId = categories.isNotEmpty ? categories.first.id : 1;
+    String paymentMethod = 'pago_movil';
     bool isPaid = true;
     bool isLoading = false;
+
+    final vzlaTemplates = [
+      {'label': 'Fibex Telecom', 'type': 'servicio'},
+      {'label': 'Inter Fibra', 'type': 'servicio'},
+      {'label': 'Thundernet', 'type': 'servicio'},
+      {'label': 'NetUno', 'type': 'servicio'},
+      {'label': 'Corpoelec', 'type': 'servicio'},
+      {'label': 'Condominio (BCV)', 'type': 'obligatorio'},
+      {'label': 'Digitel', 'type': 'servicio'},
+      {'label': 'Movistar', 'type': 'servicio'},
+      {'label': 'Gas Doméstico', 'type': 'servicio'},
+      {'label': 'Colegio / Uni', 'type': 'obligatorio'},
+    ];
 
     showModalBottomSheet(
       context: context,
@@ -128,96 +142,147 @@ class CustomDialogs {
             top: 24,
             bottom: MediaQuery.of(context).viewInsets.bottom + 24,
           ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Text(
-                'Nuevo Gasto o Servicio',
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-              ),
-              const SizedBox(height: 18),
-              TextField(
-                controller: titleController,
-                decoration: const InputDecoration(
-                  labelText: 'Concepto (ej. Supermercado, Luz, Alquiler)',
-                  prefixIcon: Icon(Icons.shopping_bag_outlined),
+          child: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Nuevo Gasto o Servicio Venezuela',
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                 ),
-              ),
-              const SizedBox(height: 14),
-              TextField(
-                controller: amountController,
-                keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                decoration: const InputDecoration(
-                  labelText: 'Monto (\$)',
-                  prefixIcon: Icon(Icons.attach_money),
+                const SizedBox(height: 10),
+                const Text(
+                  'Plantillas rápidas Carabobo / Venezuela:',
+                  style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: Color(0xFF64748B)),
                 ),
-              ),
-              const SizedBox(height: 14),
-              DropdownButtonFormField<int>(
-                value: selectedCategoryId,
-                decoration: const InputDecoration(
-                  labelText: 'Categoría',
-                  prefixIcon: Icon(Icons.category_outlined),
-                ),
-                items: categories.map((cat) {
-                  return DropdownMenuItem<int>(
-                    value: cat.id,
-                    child: Text('${cat.name} (${cat.type})'),
-                  );
-                }).toList(),
-                onChanged: (val) {
-                  if (val != null) setState(() => selectedCategoryId = val);
-                },
-              ),
-              const SizedBox(height: 14),
-              SwitchListTile(
-                contentPadding: EdgeInsets.zero,
-                title: const Text('¿Ya está pagado?'),
-                subtitle: Text(
-                  isPaid ? 'Gasto liquidado hoy' : 'Servicio / Factura pendiente por pagar',
-                  style: const TextStyle(fontSize: 12),
-                ),
-                value: isPaid,
-                activeColor: const Color(0xFF10B981),
-                onChanged: (val) => setState(() => isPaid = val),
-              ),
-              const SizedBox(height: 20),
-              SizedBox(
-                width: double.infinity,
-                child: ElevatedButton(
-                  onPressed: isLoading
-                      ? null
-                      : () async {
-                          final title = titleController.text.trim();
-                          final amount = double.tryParse(amountController.text) ?? 0;
-                          if (title.isEmpty || amount <= 0) return;
-                          setState(() => isLoading = true);
-                          try {
-                            await onConfirm({
-                              'title': title,
-                              'amount': amount,
-                              'category_id': selectedCategoryId,
-                              'date': today,
-                              'due_date': isPaid ? null : today,
-                              'is_paid': isPaid ? 1 : 0,
-                              'payment_method': 'efectivo',
-                            });
-                            if (context.mounted) Navigator.pop(context);
-                          } finally {
-                            if (context.mounted) setState(() => isLoading = false);
-                          }
+                const SizedBox(height: 6),
+                SizedBox(
+                  height: 36,
+                  child: ListView.separated(
+                    scrollDirection: Axis.horizontal,
+                    itemCount: vzlaTemplates.length,
+                    separatorBuilder: (_, __) => const SizedBox(width: 6),
+                    itemBuilder: (_, idx) {
+                      final t = vzlaTemplates[idx];
+                      return ActionChip(
+                        label: Text(t['label']!, style: const TextStyle(fontSize: 11)),
+                        backgroundColor: const Color(0xFFEEF2FF),
+                        onPressed: () {
+                          setState(() {
+                            titleController.text = t['label']!;
+                            final serviceCat = categories.where((c) => c.type == t['type']).toList();
+                            if (serviceCat.isNotEmpty) {
+                              selectedCategoryId = serviceCat.first.id;
+                            }
+                          });
                         },
-                  child: isLoading
-                      ? const SizedBox(
-                          height: 20,
-                          width: 20,
-                          child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
-                        )
-                      : const Text('Guardar Gasto'),
+                      );
+                    },
+                  ),
                 ),
-              ),
-            ],
+                const SizedBox(height: 14),
+                TextField(
+                  controller: titleController,
+                  decoration: const InputDecoration(
+                    labelText: 'Concepto (ej. Fibex, Mercado, Condominio)',
+                    prefixIcon: Icon(Icons.shopping_bag_outlined),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: amountController,
+                  keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                  decoration: const InputDecoration(
+                    labelText: 'Monto (\$ USD)',
+                    prefixIcon: Icon(Icons.attach_money),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                DropdownButtonFormField<int>(
+                  initialValue: selectedCategoryId,
+                  decoration: const InputDecoration(
+                    labelText: 'Categoría',
+                    prefixIcon: Icon(Icons.category_outlined),
+                  ),
+                  items: categories.map((cat) {
+                    return DropdownMenuItem<int>(
+                      value: cat.id,
+                      child: Text('${cat.name} (${cat.type})'),
+                    );
+                  }).toList(),
+                  onChanged: (val) {
+                    if (val != null) setState(() => selectedCategoryId = val);
+                  },
+                ),
+                const SizedBox(height: 12),
+                DropdownButtonFormField<String>(
+                  initialValue: paymentMethod,
+                  decoration: const InputDecoration(
+                    labelText: 'Método de Pago',
+                    prefixIcon: Icon(Icons.account_balance_wallet_outlined),
+                  ),
+                  items: const [
+                    DropdownMenuItem(value: 'pago_movil', child: Text('Pago Móvil / Bs')),
+                    DropdownMenuItem(value: 'efectivo_usd', child: Text('Efectivo USD (\$)')),
+                    DropdownMenuItem(value: 'binance_usdt', child: Text('Binance USDT')),
+                    DropdownMenuItem(value: 'zelle', child: Text('Zelle')),
+                    DropdownMenuItem(value: 'cashea', child: Text('Cashea')),
+                    DropdownMenuItem(value: 'tarjeta_debito', child: Text('Punto de Venta / Débito')),
+                  ],
+                  onChanged: (val) {
+                    if (val != null) setState(() => paymentMethod = val);
+                  },
+                ),
+                const SizedBox(height: 10),
+                SwitchListTile(
+                  contentPadding: EdgeInsets.zero,
+                  title: const Text('¿Ya está pagado?'),
+                  subtitle: Text(
+                    isPaid ? 'Gasto liquidado hoy' : 'Servicio / Factura pendiente por pagar',
+                    style: const TextStyle(fontSize: 12),
+                  ),
+                  value: isPaid,
+                  activeThumbColor: const Color(0xFF10B981),
+                  onChanged: (val) => setState(() => isPaid = val),
+                ),
+                const SizedBox(height: 16),
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton(
+                    onPressed: isLoading
+                        ? null
+                        : () async {
+                            final title = titleController.text.trim();
+                            final amount = double.tryParse(amountController.text) ?? 0;
+                            if (title.isEmpty || amount <= 0) return;
+                            setState(() => isLoading = true);
+                            try {
+                              await onConfirm({
+                                'title': title,
+                                'amount': amount,
+                                'category_id': selectedCategoryId,
+                                'date': today,
+                                'due_date': isPaid ? null : today,
+                                'is_paid': isPaid ? 1 : 0,
+                                'payment_method': paymentMethod,
+                              });
+                              if (context.mounted) Navigator.pop(context);
+                            } finally {
+                              if (context.mounted) setState(() => isLoading = false);
+                            }
+                          },
+                    child: isLoading
+                        ? const SizedBox(
+                            height: 20,
+                            width: 20,
+                            child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                          )
+                        : const Text('Guardar Gasto'),
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
       ),

@@ -26,3 +26,21 @@ export const authenticate = (req, res, next) => {
     next(error);
   }
 };
+
+// Middleware no bloqueante que inyecta req.user si viene un Bearer token válido
+export const optionalAuthenticate = (req, res, next) => {
+  try {
+    const authHeader = req.headers.authorization;
+    if (authHeader && authHeader.startsWith('Bearer ')) {
+      const token = authHeader.split(' ')[1];
+      const decoded = verifyToken(token);
+      const user = db.prepare('SELECT id, name, email, avatar, created_at FROM users WHERE id = ?').get(decoded.id);
+      if (user) {
+        req.user = user;
+      }
+    }
+  } catch (_) {
+    // Si el token es inválido o expirado en rutas opcionales, continuamos sin bloquear
+  }
+  next();
+};

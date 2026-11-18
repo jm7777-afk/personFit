@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../models/exchange_rate_model.dart';
 import 'currency_calculator_dialog.dart';
+import 'payment_advisor_dialog.dart';
 
 class ExchangeRateTicker extends StatelessWidget {
   final ExchangeRatesSummaryModel? rates;
@@ -85,25 +86,50 @@ class ExchangeRateTicker extends StatelessWidget {
                 ),
               ],
             ),
-            GestureDetector(
-              onTap: () => CurrencyCalculatorDialog.show(context, rates: rates),
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                decoration: BoxDecoration(
-                  color: const Color(0xFF10B981).withOpacity(0.12),
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                child: const Row(
-                  children: [
-                    Icon(Icons.calculate, size: 14, color: Color(0xFF10B981)),
-                    SizedBox(width: 4),
-                    Text(
-                      'Calculadora',
-                      style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Color(0xFF10B981)),
+            Row(
+              children: [
+                GestureDetector(
+                  onTap: () => PaymentAdvisorDialog.show(context, rates: rates),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF0F172A),
+                      borderRadius: BorderRadius.circular(10),
                     ),
-                  ],
+                    child: const Row(
+                      children: [
+                        Icon(Icons.balance, size: 13, color: Color(0xFF38BDF8)),
+                        SizedBox(width: 4),
+                        Text(
+                          '¿Bs o \$ hoy?',
+                          style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.white),
+                        ),
+                      ],
+                    ),
+                  ),
                 ),
-              ),
+                const SizedBox(width: 6),
+                GestureDetector(
+                  onTap: () => CurrencyCalculatorDialog.show(context, rates: rates),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF10B981).withOpacity(0.12),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: const Row(
+                      children: [
+                        Icon(Icons.calculate, size: 14, color: Color(0xFF10B981)),
+                        SizedBox(width: 4),
+                        Text(
+                          'Calc',
+                          style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Color(0xFF10B981)),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
             ),
           ],
         ),
@@ -113,8 +139,9 @@ class ExchangeRateTicker extends StatelessWidget {
           child: Row(
             children: [
               _buildRateBadge('Dólar BCV', rates!.usdBcv, rates!.usdBcvChange, false),
-              _buildRateBadge('Dólar Paralelo', rates!.usdParalelo, rates!.usdParaleloChange, true),
               _buildRateBadge('Euro BCV', rates!.eurBcv, rates!.eurBcvChange, false),
+              _buildRateBadge('USDT Binance', rates!.usdtBinance, rates!.usdtBinanceChange, true),
+              _buildRateBadge('Dólar Paralelo', rates!.usdParalelo, rates!.usdParaleloChange, true),
               _buildRateBadge('Euro Paralelo', rates!.eurParalelo, rates!.eurParaleloChange, true),
             ],
           ),

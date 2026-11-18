@@ -1,3 +1,4 @@
+import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../models/grocery_model.dart';
@@ -17,6 +18,33 @@ class _GroceriesScreenState extends State<GroceriesScreen> with SingleTickerProv
 
   bool _isLoading = true;
   bool _showInBs = false;
+  bool _isOfflineMode = false;
+
+  // Coordenadas de referencia por municipio de Carabobo para cálculo GPS / Ruta de Ahorro
+  static const Map<String, List<double>> _caraboboRefCoords = {
+    'Todos': [10.2036, -68.0049], // Centro Norte Valencia
+    'Valencia': [10.2036, -68.0049],
+    'Naguanagua': [10.2415, -68.0079],
+    'San Diego': [10.2350, -67.9585],
+    'Guacara': [10.2256, -67.8781],
+    'Los Guayos': [10.1846, -67.9348],
+    'Puerto Cabello': [10.4648, -68.0125],
+  };
+
+  double? _distanceKm(double? lat, double? lng) {
+    if (lat == null || lng == null) return null;
+    final ref = _caraboboRefCoords[_selectedMunicipality] ?? _caraboboRefCoords['Valencia']!;
+    const r = 6371.0;
+    final dLat = (lat - ref[0]) * math.pi / 180.0;
+    final dLon = (lng - ref[1]) * math.pi / 180.0;
+    final a = math.sin(dLat / 2) * math.sin(dLat / 2) +
+        math.cos(ref[0] * math.pi / 180.0) *
+            math.cos(lat * math.pi / 180.0) *
+            math.sin(dLon / 2) *
+            math.sin(dLon / 2);
+    final c = 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a));
+    return r * c;
+  }
 
   // Filtros de Ubicación (Venezuela / Carabobo)
   String _selectedState = 'Carabobo';
@@ -92,8 +120,16 @@ class _GroceriesScreenState extends State<GroceriesScreen> with SingleTickerProv
         }
       }
 
+      if (active != null) {
+        await _apiService.saveOfflineGroceryList(active);
+      }
+      if (supers.isNotEmpty) {
+        await _apiService.saveOfflineSupermarkets(supers);
+      }
+
       if (mounted) {
         setState(() {
+          _isOfflineMode = false;
           _locationsData = locs;
           _supermarkets = supers;
           _allProducts = prods;
@@ -105,10 +141,26 @@ class _GroceriesScreenState extends State<GroceriesScreen> with SingleTickerProv
         });
       }
     } catch (e) {
+      // Modo Offline Automático (cuando falla señal dentro del supermercado)
+      final cachedList = await _apiService.loadOfflineGroceryList();
+      final cachedSupers = await _apiService.loadOfflineSupermarkets();
       if (mounted) {
-        setState(() => _isLoading = false);
+        setState(() {
+          _isOfflineMode = true;
+          if (cachedList != null) {
+            _activeList = cachedList;
+            if (_lists.isEmpty) _lists = [cachedList];
+          }
+          if (cachedSupers.isNotEmpty) {
+            _supermarkets = cachedSupers;
+          }
+          _isLoading = false;
+        });
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error al cargar datos de supermercado: $e'), backgroundColor: Colors.red),
+          const SnackBar(
+            content: Text('Sin conexión: Modo Offline activado con tu lista guardada.'),
+            backgroundColor: Color(0xFFF59E0B),
+          ),
         );
       }
     }
@@ -117,6 +169,7 @@ class _GroceriesScreenState extends State<GroceriesScreen> with SingleTickerProv
   Future<void> _selectList(int listId) async {
     try {
       final details = await _apiService.getGroceryListDetails(listId);
+      await _apiService.saveOfflineGroceryList(details);
       if (mounted) {
         setState(() => _activeList = details);
       }
@@ -127,10 +180,60 @@ class _GroceriesScreenState extends State<GroceriesScreen> with SingleTickerProv
     if (_activeList == null) return;
     try {
       final updated = await _apiService.toggleGroceryListItem(_activeList!.id, itemId, !currentChecked);
+      await _apiService.saveOfflineGroceryList(updated);
       if (mounted) {
-        setState(() => _activeList = updated);
+        setState(() {
+          _isOfflineMode = false;
+          _activeList = updated;
+        });
       }
-    } catch (_) {}
+    } catch (_) {
+      // Actualización local instantánea en Modo Offline dentro del supermercado
+      final updatedItems = _activeList!.items.map((it) {
+        if (it.id == itemId) {
+          return GroceryListItemModel(
+            id: it.id,
+            listId: it.listId,
+            productId: it.productId,
+            productName: it.productName,
+            quantity: it.quantity,
+            unit: it.unit,
+            priceBs: it.priceBs,
+            priceUsd: it.priceUsd,
+            isChecked: !currentChecked,
+          );
+        }
+        return it;
+      }).toList();
+
+      final checkedCount = updatedItems.where((i) => i.isChecked).length;
+      final checkedUsd = updatedItems.where((i) => i.isChecked).fold<double>(0, (a, b) => a + b.quantity * b.priceUsd);
+      final checkedBs = updatedItems.where((i) => i.isChecked).fold<double>(0, (a, b) => a + b.quantity * b.priceBs);
+
+      final localList = GroceryListModel(
+        id: _activeList!.id,
+        title: _activeList!.title,
+        supermarketId: _activeList!.supermarketId,
+        supermarketName: _activeList!.supermarketName,
+        status: _activeList!.status,
+        totalItems: updatedItems.length,
+        checkedItems: checkedCount,
+        progressPercent: updatedItems.isNotEmpty ? (checkedCount / updatedItems.length) * 100 : 0,
+        totalEstimatedUsd: _activeList!.totalEstimatedUsd,
+        totalEstimatedBs: _activeList!.totalEstimatedBs,
+        totalCheckedUsd: checkedUsd,
+        totalCheckedBs: checkedBs,
+        items: updatedItems,
+      );
+
+      await _apiService.saveOfflineGroceryList(localList);
+      if (mounted) {
+        setState(() {
+          _isOfflineMode = true;
+          _activeList = localList;
+        });
+      }
+    }
   }
 
   Future<void> _deleteItem(int itemId) async {
@@ -540,6 +643,320 @@ class _GroceriesScreenState extends State<GroceriesScreen> with SingleTickerProv
     );
   }
 
+  void _showAddMinimarketDialog({void Function(Supermarket created)? onCreated}) {
+    final nameCtrl = TextEditingController();
+    final branchCtrl = TextEditingController();
+    final addressCtrl = TextEditingController();
+    final descCtrl = TextEditingController();
+    String storeType = 'minimarket';
+    String mun = _selectedMunicipality == 'Todos' ? 'Valencia' : _selectedMunicipality;
+
+    showDialog(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setDialogState) => AlertDialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          title: const Row(
+            children: [
+              Icon(Icons.add_business, color: Color(0xFF6366F1)),
+              SizedBox(width: 8),
+              Expanded(child: Text('Registrar Minimarket / Tienda', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16))),
+            ],
+          ),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TextField(
+                  controller: nameCtrl,
+                  decoration: InputDecoration(
+                    labelText: 'Nombre del Comercio',
+                    hintText: 'Ej: Abasto Don Pepe, Bodegón La Viña',
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                  ),
+                ),
+                const SizedBox(height: 10),
+                DropdownButtonFormField<String>(
+                  initialValue: storeType,
+                  decoration: InputDecoration(
+                    labelText: 'Tipo de Comercio',
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                  ),
+                  items: const [
+                    DropdownMenuItem(value: 'minimarket', child: Text('Minimarket / Abasto')),
+                    DropdownMenuItem(value: 'bodegon', child: Text('Bodegón / Charcutería')),
+                    DropdownMenuItem(value: 'supermercado', child: Text('Supermercado Local')),
+                    DropdownMenuItem(value: 'tienda', child: Text('Tienda No Registrada')),
+                  ],
+                  onChanged: (v) => setDialogState(() => storeType = v ?? 'minimarket'),
+                ),
+                const SizedBox(height: 10),
+                DropdownButtonFormField<String>(
+                  initialValue: _caraboboQuickMunicipalities.contains(mun) && mun != 'Todos' ? mun : 'Valencia',
+                  decoration: InputDecoration(
+                    labelText: 'Municipio (Carabobo)',
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                  ),
+                  items: _caraboboQuickMunicipalities
+                      .where((m) => m != 'Todos')
+                      .map((m) => DropdownMenuItem(value: m, child: Text(m)))
+                      .toList(),
+                  onChanged: (v) => setDialogState(() => mun = v ?? 'Valencia'),
+                ),
+                const SizedBox(height: 10),
+                TextField(
+                  controller: branchCtrl,
+                  decoration: InputDecoration(
+                    labelText: 'Sector / Urbanización (opcional)',
+                    hintText: 'Ej: Prebo, El Trigal, La Granja',
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                  ),
+                ),
+                const SizedBox(height: 10),
+                TextField(
+                  controller: addressCtrl,
+                  decoration: InputDecoration(
+                    labelText: 'Dirección / Punto de Referencia',
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                  ),
+                ),
+                const SizedBox(height: 10),
+                TextField(
+                  controller: descCtrl,
+                  maxLines: 2,
+                  decoration: InputDecoration(
+                    labelText: 'Descripción (opcional)',
+                    hintText: 'Ej: Buenos precios en víveres, acepta Pago Móvil y Cashea',
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancelar')),
+            ElevatedButton(
+              onPressed: () async {
+                final name = nameCtrl.text.trim();
+                if (name.isEmpty) return;
+                Navigator.pop(ctx);
+                try {
+                  final ref = _caraboboRefCoords[mun] ?? _caraboboRefCoords['Valencia']!;
+                  final created = await _apiService.createSupermarket({
+                    'name': name,
+                    'branch': branchCtrl.text.trim().isEmpty ? mun : branchCtrl.text.trim(),
+                    'state': _selectedState,
+                    'municipality': mun,
+                    'address': addressCtrl.text.trim().isEmpty ? '$mun, $_selectedState' : addressCtrl.text.trim(),
+                    'description': descCtrl.text.trim().isEmpty
+                        ? 'Comercio registrado por la comunidad en $mun.'
+                        : descCtrl.text.trim(),
+                    'store_type': storeType,
+                    'latitude': ref[0],
+                    'longitude': ref[1],
+                  });
+                  await _loadAllData();
+                  onCreated?.call(created);
+                  if (mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text('¡"${created.name}" registrado en tu directorio!'),
+                        backgroundColor: const Color(0xFF10B981),
+                      ),
+                    );
+                  }
+                } catch (e) {
+                  if (mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red));
+                  }
+                }
+              },
+              style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF6366F1), foregroundColor: Colors.white),
+              child: const Text('Guardar Comercio'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _showReportPriceDialog({Supermarket? preselectedStore}) {
+    final barcodeCtrl = TextEditingController();
+    final productNameCtrl = TextEditingController();
+    final priceUsdCtrl = TextEditingController();
+    final priceBsCtrl = TextEditingController();
+    GroceryProduct? selectedProd;
+    int? selectedSuperId = preselectedStore?.id ?? (_supermarkets.isNotEmpty ? _supermarkets.first.id : null);
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setModalState) => Padding(
+          padding: EdgeInsets.only(
+            left: 20,
+            right: 20,
+            top: 20,
+            bottom: MediaQuery.of(ctx).viewInsets.bottom + 20,
+          ),
+          child: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Row(
+                  children: [
+                    Icon(Icons.qr_code_scanner, color: Color(0xFF10B981)),
+                    SizedBox(width: 8),
+                    Text(
+                      'Reportar Precio Colaborativo',
+                      style: TextStyle(fontSize: 17, fontWeight: FontWeight.bold, color: Color(0xFF0F172A)),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 6),
+                const Text(
+                  'Actualiza el precio real de un producto por código de barras para ayudar a la comunidad de Carabobo.',
+                  style: TextStyle(fontSize: 12, color: Color(0xFF64748B)),
+                ),
+                const SizedBox(height: 14),
+                DropdownButtonFormField<int>(
+                  initialValue: selectedSuperId,
+                  decoration: InputDecoration(
+                    labelText: 'Supermercado o Minimarket',
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                  ),
+                  items: _supermarkets
+                      .map((s) => DropdownMenuItem(
+                            value: s.id,
+                            child: Text('${s.name} (${s.branch ?? s.municipality})', overflow: TextOverflow.ellipsis),
+                          ))
+                      .toList(),
+                  onChanged: (v) => setModalState(() => selectedSuperId = v),
+                ),
+                const SizedBox(height: 10),
+                TextField(
+                  controller: barcodeCtrl,
+                  keyboardType: TextInputType.number,
+                  decoration: InputDecoration(
+                    labelText: 'Código de Barras (opcional)',
+                    hintText: 'Ej: 7591001000012',
+                    prefixIcon: const Icon(Icons.barcode_reader),
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                  ),
+                ),
+                const SizedBox(height: 10),
+                if (_allProducts.isNotEmpty)
+                  DropdownButtonFormField<GroceryProduct>(
+                    decoration: InputDecoration(
+                      labelText: 'Producto del Catálogo (o escribe uno abajo)',
+                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                    ),
+                    items: _allProducts
+                        .map((p) => DropdownMenuItem(value: p, child: Text(p.name, overflow: TextOverflow.ellipsis)))
+                        .toList(),
+                    onChanged: (p) {
+                      setModalState(() {
+                        selectedProd = p;
+                        if (p != null) productNameCtrl.text = p.name;
+                      });
+                    },
+                  ),
+                const SizedBox(height: 10),
+                TextField(
+                  controller: productNameCtrl,
+                  decoration: InputDecoration(
+                    labelText: 'Nombre del Producto',
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                  ),
+                ),
+                const SizedBox(height: 10),
+                Row(
+                  children: [
+                    Expanded(
+                      child: TextField(
+                        controller: priceUsdCtrl,
+                        keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                        decoration: InputDecoration(
+                          labelText: 'Precio \$ USD',
+                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                        ),
+                        onChanged: (v) {
+                          final usd = double.tryParse(v.replaceAll(',', '.')) ?? 0;
+                          priceBsCtrl.text = (usd * _apiService.activeBcvRate).toStringAsFixed(2);
+                        },
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: TextField(
+                        controller: priceBsCtrl,
+                        keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                        decoration: InputDecoration(
+                          labelText: 'Precio Bs.',
+                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                        ),
+                        onChanged: (v) {
+                          final bs = double.tryParse(v.replaceAll(',', '.')) ?? 0;
+                          if (_apiService.activeBcvRate > 0) {
+                            priceUsdCtrl.text = (bs / _apiService.activeBcvRate).toStringAsFixed(2);
+                          }
+                        },
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 16),
+                SizedBox(
+                  width: double.infinity,
+                  height: 46,
+                  child: ElevatedButton.icon(
+                    onPressed: () async {
+                      final usd = double.tryParse(priceUsdCtrl.text.replaceAll(',', '.')) ?? 0;
+                      final bs = double.tryParse(priceBsCtrl.text.replaceAll(',', '.')) ?? (usd * _apiService.activeBcvRate);
+                      if (selectedSuperId == null || usd <= 0 || (selectedProd == null && productNameCtrl.text.trim().isEmpty)) {
+                        return;
+                      }
+                      Navigator.pop(ctx);
+                      try {
+                        await _apiService.recordGroceryPrice({
+                          'product_id': selectedProd?.id,
+                          'product_name': productNameCtrl.text.trim(),
+                          'barcode': barcodeCtrl.text.trim().isEmpty ? null : barcodeCtrl.text.trim(),
+                          'supermarket_id': selectedSuperId,
+                          'price_usd': usd,
+                          'price_bs': bs,
+                        });
+                        await _loadAllData();
+                        if (mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text('¡Precio verificado y publicado en Carabobo!'),
+                              backgroundColor: Color(0xFF10B981),
+                            ),
+                          );
+                        }
+                      } catch (e) {
+                        if (mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red));
+                        }
+                      }
+                    },
+                    icon: const Icon(Icons.verified),
+                    label: const Text('Publicar Precio Verificado', style: TextStyle(fontWeight: FontWeight.bold)),
+                    style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF10B981), foregroundColor: Colors.white),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
   void _showCreateListDialog({int? preselectedSupermarketId}) {
     final titleController = TextEditingController(text: 'Compras Semanales');
     int? selectedSupermarketId = preselectedSupermarketId;
@@ -565,10 +982,10 @@ class _GroceriesScreenState extends State<GroceriesScreen> with SingleTickerProv
                   const SizedBox(height: 12),
                   DropdownButtonFormField<int>(
                     decoration: InputDecoration(
-                      labelText: 'Supermercado de Compra',
+                      labelText: 'Supermercado o Minimarket (Opcional)',
                       border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
                     ),
-                    initialValue: selectedSupermarketId,
+                    initialValue: _supermarkets.any((s) => s.id == selectedSupermarketId) ? selectedSupermarketId : null,
                     items: _supermarkets.map((s) {
                       return DropdownMenuItem(
                         value: s.id,
@@ -579,6 +996,20 @@ class _GroceriesScreenState extends State<GroceriesScreen> with SingleTickerProv
                       );
                     }).toList(),
                     onChanged: (val) => setDialogState(() => selectedSupermarketId = val),
+                  ),
+                  const SizedBox(height: 8),
+                  Align(
+                    alignment: Alignment.centerLeft,
+                    child: TextButton.icon(
+                      onPressed: () {
+                        Navigator.pop(ctx);
+                        _showAddMinimarketDialog(onCreated: (created) {
+                          _showCreateListDialog(preselectedSupermarketId: created.id);
+                        });
+                      },
+                      icon: const Icon(Icons.add_business, size: 16),
+                      label: const Text('¿No está tu tienda? Agregar Minimarket', style: TextStyle(fontSize: 12)),
+                    ),
                   ),
                 ],
               ),
@@ -591,6 +1022,7 @@ class _GroceriesScreenState extends State<GroceriesScreen> with SingleTickerProv
                     Navigator.pop(ctx);
                     try {
                       final newList = await _apiService.createGroceryList(title, supermarketId: selectedSupermarketId);
+                      await _apiService.saveOfflineGroceryList(newList);
                       final allLists = await _apiService.getGroceryLists();
                       if (mounted) {
                         setState(() {
@@ -598,10 +1030,16 @@ class _GroceriesScreenState extends State<GroceriesScreen> with SingleTickerProv
                           _activeList = newList;
                           _tabController.animateTo(0);
                         });
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text('Lista "$title" creada exitosamente'),
+                            backgroundColor: const Color(0xFF10B981),
+                          ),
+                        );
                       }
                     } catch (e) {
                       if (mounted) {
-                        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e')));
+                        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error al crear lista: $e'), backgroundColor: Colors.red));
                       }
                     }
                   },
@@ -749,6 +1187,31 @@ class _GroceriesScreenState extends State<GroceriesScreen> with SingleTickerProv
             ),
           ),
 
+          // BANNER MODO OFFLINE (CRÍTICO EN SUPERMERCADOS SIN SEÑAL)
+          if (_isOfflineMode)
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+              color: const Color(0xFFFEF3C7),
+              child: Row(
+                children: [
+                  const Icon(Icons.wifi_off, size: 16, color: Color(0xFFB45309)),
+                  const SizedBox(width: 8),
+                  const Expanded(
+                    child: Text(
+                      'Modo Offline activo: puedes marcar tu carrito sin señal.',
+                      style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Color(0xFF92400E)),
+                    ),
+                  ),
+                  TextButton(
+                    onPressed: _loadAllData,
+                    style: TextButton.styleFrom(padding: EdgeInsets.zero, minimumSize: const Size(50, 24)),
+                    child: const Text('Sincronizar', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
+                  ),
+                ],
+              ),
+            ),
+
           // CONTENIDO DE PESTAÑAS
           Expanded(
             child: _isLoading
@@ -779,7 +1242,21 @@ class _GroceriesScreenState extends State<GroceriesScreen> with SingleTickerProv
               icon: const Icon(Icons.add_shopping_cart, color: Colors.white),
               label: const Text('Agregar Ítem', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
             )
-          : null,
+          : (_tabController.index == 1
+              ? FloatingActionButton.extended(
+                  onPressed: () => _showReportPriceDialog(),
+                  backgroundColor: const Color(0xFF10B981),
+                  icon: const Icon(Icons.qr_code_scanner, color: Colors.white),
+                  label: const Text('Reportar Precio', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                )
+              : (_tabController.index == 3
+                  ? FloatingActionButton.extended(
+                      onPressed: () => _showAddMinimarketDialog(),
+                      backgroundColor: const Color(0xFF0F172A),
+                      icon: const Icon(Icons.add_business, color: Colors.white),
+                      label: const Text('+ Minimarket / Tienda', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                    )
+                  : null)),
     );
   }
 
@@ -1479,6 +1956,8 @@ class _GroceriesScreenState extends State<GroceriesScreen> with SingleTickerProv
             )
           else
             ..._supermarkets.map((s) {
+              final distKm = _distanceKm(s.latitude, s.longitude);
+              final estTransportUsd = distKm != null ? (distKm * 0.25).clamp(0.5, 6.0) : null;
               return Card(
                 margin: const EdgeInsets.only(bottom: 14),
                 elevation: 0,
@@ -1491,7 +1970,7 @@ class _GroceriesScreenState extends State<GroceriesScreen> with SingleTickerProv
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      // Encabezado: Nombre, Sucursal y Badge de Municipio
+                      // Encabezado: Nombre, Sucursal, Distancia GPS y Badge de Municipio
                       Row(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
@@ -1505,7 +1984,13 @@ class _GroceriesScreenState extends State<GroceriesScreen> with SingleTickerProv
                               ),
                               borderRadius: BorderRadius.circular(12),
                             ),
-                            child: const Icon(Icons.storefront, color: Colors.white, size: 24),
+                            child: Icon(
+                              s.storeType == 'minimarket' || s.storeType == 'tienda'
+                                  ? Icons.store_mall_directory
+                                  : Icons.storefront,
+                              color: Colors.white,
+                              size: 24,
+                            ),
                           ),
                           const SizedBox(width: 12),
                           Expanded(
@@ -1518,8 +2003,13 @@ class _GroceriesScreenState extends State<GroceriesScreen> with SingleTickerProv
                                 ),
                                 if (s.branch != null)
                                   Text(
-                                    s.branch!,
-                                    style: const TextStyle(fontSize: 13, color: Color(0xFF6366F1), fontWeight: FontWeight.w600),
+                                    '${s.branch!} • ${s.storeType.toUpperCase()}',
+                                    style: const TextStyle(fontSize: 12, color: Color(0xFF6366F1), fontWeight: FontWeight.w600),
+                                  ),
+                                if (distKm != null)
+                                  Text(
+                                    '📍 A ${distKm.toStringAsFixed(1)} km • Traslado est. ~\$${estTransportUsd!.toStringAsFixed(2)}',
+                                    style: const TextStyle(fontSize: 11, color: Color(0xFF059669), fontWeight: FontWeight.w600),
                                   ),
                               ],
                             ),
@@ -1632,8 +2122,8 @@ class _GroceriesScreenState extends State<GroceriesScreen> with SingleTickerProv
                               onPressed: () {
                                 _showCreateListDialog(preselectedSupermarketId: s.id);
                               },
-                              icon: const Icon(Icons.add_shopping_cart, size: 16),
-                              label: const Text('Crear Lista Aquí', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+                              icon: const Icon(Icons.add_shopping_cart, size: 15),
+                              label: const Text('Crear Lista', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
                               style: OutlinedButton.styleFrom(
                                 foregroundColor: const Color(0xFF6366F1),
                                 side: const BorderSide(color: Color(0xFF6366F1)),
@@ -1644,11 +2134,9 @@ class _GroceriesScreenState extends State<GroceriesScreen> with SingleTickerProv
                           const SizedBox(width: 8),
                           Expanded(
                             child: ElevatedButton.icon(
-                              onPressed: () {
-                                _tabController.animateTo(2);
-                              },
-                              icon: const Icon(Icons.leaderboard_outlined, size: 16),
-                              label: const Text('Ver Precios', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+                              onPressed: () => _showReportPriceDialog(preselectedStore: s),
+                              icon: const Icon(Icons.qr_code_scanner, size: 15),
+                              label: const Text('Reportar Precio', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
                               style: ElevatedButton.styleFrom(
                                 backgroundColor: const Color(0xFF0F172A),
                                 foregroundColor: Colors.white,

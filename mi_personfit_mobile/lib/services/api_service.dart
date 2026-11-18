@@ -13,6 +13,8 @@ import '../models/exchange_rate_model.dart';
 import '../models/payroll_model.dart';
 import '../models/grocery_model.dart';
 import '../models/share_model.dart';
+import '../models/wallet_model.dart';
+import '../models/installment_model.dart';
 
 class ApiService {
   static final ApiService _instance = ApiService._internal();
@@ -23,6 +25,9 @@ class ApiService {
   UserModel? _currentUser;
   bool showInBs = false; // Selector global de moneda: False = USD ($), True = Bolívares (Bs)
   double activeBcvRate = 914.02;
+  double activeParaleloRate = 1045.50;
+  double activeUsdtRate = 1052.00;
+  double activeEurBcvRate = 1010.56;
 
   String? get token => _authToken;
   UserModel? get currentUser => _currentUser;
@@ -332,11 +337,12 @@ class ApiService {
 
   // --- GASTOS ---
 
-  Future<List<ExpenseModel>> getExpenses({String? month, int? isPaid, String? type}) async {
+  Future<List<ExpenseModel>> getExpenses({String? month, int? isPaid, String? type, String? period}) async {
     final queryParams = <String, String>{};
     if (month != null) queryParams['month'] = month;
     if (isPaid != null) queryParams['is_paid'] = isPaid.toString();
     if (type != null) queryParams['type'] = type;
+    if (period != null && period.isNotEmpty) queryParams['period'] = period;
 
     final uri = Uri.parse('${ApiConfig.baseUrl}/expenses').replace(
       queryParameters: queryParams.isNotEmpty ? queryParams : null,
@@ -457,18 +463,36 @@ class ApiService {
   // --- TASAS DE CAMBIO VENEZUELA & CALCULADORA ---
 
   Future<ExchangeRatesSummaryModel> getExchangeRates() async {
-    final response = await http.get(
-      Uri.parse('${ApiConfig.baseUrl}/rates'),
-      headers: _headers,
-    );
-    final data = jsonDecode(response.body);
+    try {
+      final response = await http.get(
+        Uri.parse('${ApiConfig.baseUrl}/rates'),
+        headers: _headers,
+      );
+      final data = jsonDecode(response.body);
 
-    if (response.statusCode == 200) {
-      final summary = ExchangeRatesSummaryModel.fromJson(data['data']);
-      activeBcvRate = summary.usdBcv;
-      return summary;
-    } else {
-      throw Exception(data['message'] ?? 'Error al cargar tasas de cambio');
+      if (response.statusCode == 200) {
+        final summary = ExchangeRatesSummaryModel.fromJson(data['data']);
+        if (summary.usdBcv > 0) activeBcvRate = summary.usdBcv;
+        if (summary.usdParalelo > 0) activeParaleloRate = summary.usdParalelo;
+        if (summary.usdtBinance > 0) activeUsdtRate = summary.usdtBinance;
+        if (summary.eurBcv > 0) activeEurBcvRate = summary.eurBcv;
+
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.setDouble('cached_bcv_rate', activeBcvRate);
+        await prefs.setDouble('cached_paralelo_rate', activeParaleloRate);
+        await prefs.setDouble('cached_usdt_rate', activeUsdtRate);
+        await prefs.setDouble('cached_eur_bcv_rate', activeEurBcvRate);
+        return summary;
+      } else {
+        throw Exception(data['message'] ?? 'Error al cargar tasas de cambio');
+      }
+    } catch (_) {
+      final prefs = await SharedPreferences.getInstance();
+      activeBcvRate = prefs.getDouble('cached_bcv_rate') ?? activeBcvRate;
+      activeParaleloRate = prefs.getDouble('cached_paralelo_rate') ?? activeParaleloRate;
+      activeUsdtRate = prefs.getDouble('cached_usdt_rate') ?? activeUsdtRate;
+      activeEurBcvRate = prefs.getDouble('cached_eur_bcv_rate') ?? activeEurBcvRate;
+      rethrow;
     }
   }
 
@@ -727,5 +751,168 @@ class ApiService {
     );
     final data = jsonDecode(response.body);
     return SharedProfileData.fromJson(data['data'] ?? {'is_valid': false, 'message': data['message']});
+  }
+
+  // --- BILLETERAS VENEZOLANAS (BS, EFECTIVO $, BINANCE USDT, ZELLE, ZINLI, EURO) ---
+
+  Future<WalletsSummaryModel> getWallets() async {
+    final response = await http.get(
+      Uri.parse('${ApiConfig.baseUrl}/wallets'),
+      headers: _headers,
+    );
+    final data = jsonDecode(response.body);
+    if (response.statusCode == 200) {
+      return WalletsSummaryModel.fromJson(data['data']);
+    } else {
+      throw Exception(data['message'] ?? 'Error al cargar billeteras');
+    }
+  }
+
+  Future<WalletModel> createWallet(Map<String, dynamic> payload) async {
+    final response = await http.post(
+      Uri.parse('${ApiConfig.baseUrl}/wallets'),
+      headers: _headers,
+      body: jsonEncode(payload),
+    );
+    final data = jsonDecode(response.body);
+    if (response.statusCode == 201) {
+      return WalletModel.fromJson(data['data']);
+    } else {
+      throw Exception(data['message'] ?? 'Error al crear billetera');
+    }
+  }
+
+  Future<WalletModel> updateWallet(int id, Map<String, dynamic> payload) async {
+    final response = await http.put(
+      Uri.parse('${ApiConfig.baseUrl}/wallets/$id'),
+      headers: _headers,
+      body: jsonEncode(payload),
+    );
+    final data = jsonDecode(response.body);
+    if (response.statusCode == 200) {
+      return WalletModel.fromJson(data['data']);
+    } else {
+      throw Exception(data['message'] ?? 'Error al actualizar billetera');
+    }
+  }
+
+  Future<void> deleteWallet(int id) async {
+    await http.delete(
+      Uri.parse('${ApiConfig.baseUrl}/wallets/$id'),
+      headers: _headers,
+    );
+  }
+
+  // --- CONTROL DE CUOTAS (CASHEA / KRECE / CRÉDITOS CADA 14 DÍAS) ---
+
+  Future<InstallmentsSummaryModel> getInstallmentPlans() async {
+    final response = await http.get(
+      Uri.parse('${ApiConfig.baseUrl}/installments'),
+      headers: _headers,
+    );
+    final data = jsonDecode(response.body);
+    if (response.statusCode == 200) {
+      return InstallmentsSummaryModel.fromJson(data['data']);
+    } else {
+      throw Exception(data['message'] ?? 'Error al cargar planes de cuotas');
+    }
+  }
+
+  Future<InstallmentPlanModel> createInstallmentPlan(Map<String, dynamic> payload) async {
+    final response = await http.post(
+      Uri.parse('${ApiConfig.baseUrl}/installments'),
+      headers: _headers,
+      body: jsonEncode(payload),
+    );
+    final data = jsonDecode(response.body);
+    if (response.statusCode == 201) {
+      return InstallmentPlanModel.fromJson(data['data']);
+    } else {
+      throw Exception(data['message'] ?? 'Error al registrar compra en cuotas');
+    }
+  }
+
+  Future<InstallmentPlanModel> toggleInstallmentPayment(int paymentId) async {
+    final response = await http.patch(
+      Uri.parse('${ApiConfig.baseUrl}/installments/payments/$paymentId/toggle'),
+      headers: _headers,
+    );
+    final data = jsonDecode(response.body);
+    if (response.statusCode == 200) {
+      return InstallmentPlanModel.fromJson(data['data']);
+    } else {
+      throw Exception(data['message'] ?? 'Error al actualizar cuota');
+    }
+  }
+
+  Future<void> deleteInstallmentPlan(int planId) async {
+    await http.delete(
+      Uri.parse('${ApiConfig.baseUrl}/installments/$planId'),
+      headers: _headers,
+    );
+  }
+
+  // --- MINIMARKETS / TIENDAS NO REGISTRADAS & PRECIOS COLABORATIVOS ---
+
+  Future<Supermarket> createSupermarket(Map<String, dynamic> payload) async {
+    final response = await http.post(
+      Uri.parse('${ApiConfig.baseUrl}/groceries/supermarkets'),
+      headers: _headers,
+      body: jsonEncode(payload),
+    );
+    final data = jsonDecode(response.body);
+    if (response.statusCode == 201) {
+      return Supermarket.fromJson(data['data']);
+    } else {
+      throw Exception(data['message'] ?? 'Error al registrar comercio');
+    }
+  }
+
+  Future<Map<String, dynamic>> recordGroceryPrice(Map<String, dynamic> payload) async {
+    final response = await http.post(
+      Uri.parse('${ApiConfig.baseUrl}/groceries/prices'),
+      headers: _headers,
+      body: jsonEncode(payload),
+    );
+    final data = jsonDecode(response.body);
+    if (response.statusCode == 201) {
+      return data['data'] as Map<String, dynamic>;
+    } else {
+      throw Exception(data['message'] ?? 'Error al reportar precio');
+    }
+  }
+
+  // --- MODO OFFLINE PARA SUPERMERCADOS (CACHÉ LOCAL) ---
+
+  Future<void> saveOfflineGroceryList(GroceryListModel list) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString('offline_active_grocery_list', jsonEncode(list.toJson()));
+  }
+
+  Future<GroceryListModel?> loadOfflineGroceryList() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final str = prefs.getString('offline_active_grocery_list');
+      if (str != null) {
+        return GroceryListModel.fromJson(jsonDecode(str));
+      }
+    } catch (_) {}
+    return null;
+  }
+
+  Future<void> saveOfflineSupermarkets(List<Supermarket> supers) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString('offline_supermarkets', jsonEncode(supers.map((s) => s.toJson()).toList()));
+  }
+
+  Future<List<Supermarket>> loadOfflineSupermarkets() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final str = prefs.getString('offline_supermarkets');
+      if (str != null) {
+        return (jsonDecode(str) as List).map((e) => Supermarket.fromJson(e)).toList();
+      }
+    } catch (_) {}
+    return [];
   }
 }

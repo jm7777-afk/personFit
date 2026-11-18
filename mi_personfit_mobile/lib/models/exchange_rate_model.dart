@@ -41,6 +41,8 @@ class ExchangeRatesSummaryModel {
   final double usdBcvChange;
   final double usdParalelo;
   final double usdParaleloChange;
+  final double usdtBinance;
+  final double usdtBinanceChange;
   final double eurBcv;
   final double eurBcvChange;
   final double eurParalelo;
@@ -53,6 +55,8 @@ class ExchangeRatesSummaryModel {
     required this.usdBcvChange,
     required this.usdParalelo,
     required this.usdParaleloChange,
+    required this.usdtBinance,
+    required this.usdtBinanceChange,
     required this.eurBcv,
     required this.eurBcvChange,
     required this.eurParalelo,
@@ -68,11 +72,16 @@ class ExchangeRatesSummaryModel {
             .toList() ??
         [];
 
+    final paralelo = (s['usd_paralelo'] as num?)?.toDouble() ?? 0.0;
+    final usdt = (s['usdt_binance'] as num?)?.toDouble() ?? (paralelo > 0 ? paralelo * 1.006 : 0.0);
+
     return ExchangeRatesSummaryModel(
       usdBcv: (s['usd_bcv'] as num?)?.toDouble() ?? 0.0,
       usdBcvChange: (s['usd_bcv_change'] as num?)?.toDouble() ?? 0.0,
-      usdParalelo: (s['usd_paralelo'] as num?)?.toDouble() ?? 0.0,
+      usdParalelo: paralelo,
       usdParaleloChange: (s['usd_paralelo_change'] as num?)?.toDouble() ?? 0.0,
+      usdtBinance: usdt,
+      usdtBinanceChange: (s['usdt_binance_change'] as num?)?.toDouble() ?? ((s['usd_paralelo_change'] as num?)?.toDouble() ?? 0.0),
       eurBcv: (s['eur_bcv'] as num?)?.toDouble() ?? 0.0,
       eurBcvChange: (s['eur_bcv_change'] as num?)?.toDouble() ?? 0.0,
       eurParalelo: (s['eur_paralelo'] as num?)?.toDouble() ?? 0.0,

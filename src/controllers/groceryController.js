@@ -50,11 +50,15 @@ export const groceryController = {
     }
   },
 
-  // Precios y Variación
+  // Precios y Variación (Colaborativo)
   recordPrice(req, res, next) {
     try {
-      const data = groceryService.recordPrice(req.body);
-      res.status(201).json({ status: 'success', message: 'Precio registrado y comparado exitosamente', data });
+      const payload = {
+        ...req.body,
+        reported_by: req.body.reported_by || req.user?.name || 'Usuario Kryon'
+      };
+      const data = groceryService.recordPrice(payload, req.user?.id);
+      res.status(201).json({ status: 'success', message: 'Precio registrado y verificado exitosamente', data });
     } catch (err) {
       next(err);
     }

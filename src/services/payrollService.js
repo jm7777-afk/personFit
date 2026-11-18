@@ -65,6 +65,17 @@ export const payrollService = {
       WHERE user_id = ? AND is_paid = 0 AND due_date <= ?
     `).all(userId, nextPayoutStr);
 
+    // c) Cuotas de Cashea / Krece / Créditos comerciales que vencen antes de la próxima quincena
+    const pendingInstallments = db.prepare(`
+      SELECT ip.id, ip.installment_number, ip.amount, ip.due_date,
+             pl.provider, pl.merchant_name, pl.title, pl.installments_count
+      FROM installment_payments ip
+      JOIN installment_plans pl ON pl.id = ip.plan_id
+      WHERE pl.user_id = ? AND pl.status = 'activa' AND pl.deduct_from_salary = 1
+        AND ip.is_paid = 0 AND ip.due_date <= ?
+      ORDER BY ip.due_date ASC
+    `).all(userId, nextPayoutStr);
+
     let totalDeductionsUsd = 0;
     const deductionsBreakdown = [];
 
@@ -83,6 +94,20 @@ export const payrollService = {
         amount_usd: payUsd,
         amount_bs: payBs,
         due_date: d.next_due_date
+      });
+    }
+
+    for (const inst of pendingInstallments) {
+      const instUsd = +(inst.amount).toFixed(2);
+      const instBs = +(instUsd * bcvRate).toFixed(2);
+      totalDeductionsUsd += instUsd;
+      deductionsBreakdown.push({
+        type: 'cuota_cashea',
+        title: `${inst.provider}: ${inst.merchant_name} (Cuota ${inst.installment_number}/${inst.installments_count})`,
+        creditor: inst.provider,
+        amount_usd: instUsd,
+        amount_bs: instBs,
+        due_date: inst.due_date
       });
     }
 

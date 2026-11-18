@@ -231,7 +231,7 @@ class _SavingsScreenState extends State<SavingsScreen> with SingleTickerProvider
                                             context: context,
                                             goal: goal,
                                             onConfirm: (amount, date, notes) async {
-                                              await ApiService().recordSavingsTransaction(goal.id, amount, date, notes);
+                                              await ApiService().addSavingsTransaction(goal.id, amount, date, notes: notes);
                                               _loadData();
                                             },
                                           );

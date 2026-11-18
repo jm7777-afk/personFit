@@ -8,6 +8,9 @@ class Supermarket {
   final String? description;
   final String? phone;
   final String? openingHours;
+  final double? latitude;
+  final double? longitude;
+  final String storeType;
 
   Supermarket({
     required this.id,
@@ -19,6 +22,9 @@ class Supermarket {
     this.description,
     this.phone,
     this.openingHours,
+    this.latitude,
+    this.longitude,
+    this.storeType = 'supermercado',
   });
 
   factory Supermarket.fromJson(Map<String, dynamic> json) {
@@ -32,8 +38,26 @@ class Supermarket {
       description: json['description'],
       phone: json['phone'],
       openingHours: json['opening_hours'],
+      latitude: (json['latitude'] as num?)?.toDouble(),
+      longitude: (json['longitude'] as num?)?.toDouble(),
+      storeType: json['store_type'] ?? 'supermercado',
     );
   }
+
+  Map<String, dynamic> toJson() => {
+        'id': id,
+        'name': name,
+        'branch': branch,
+        'state': state,
+        'municipality': municipality,
+        'address': address,
+        'description': description,
+        'phone': phone,
+        'opening_hours': openingHours,
+        'latitude': latitude,
+        'longitude': longitude,
+        'store_type': storeType,
+      };
 }
 
 class MunicipalityLocation {
@@ -141,6 +165,8 @@ class SupermarketPriceComparison {
   final double? previousPriceBs;
   final double diffUsd;
   final double increasePercentUsd;
+  final String? verifiedAt;
+  final String? reportedBy;
   final bool isCheapest;
 
   SupermarketPriceComparison({
@@ -155,6 +181,8 @@ class SupermarketPriceComparison {
     this.previousPriceBs,
     required this.diffUsd,
     required this.increasePercentUsd,
+    this.verifiedAt,
+    this.reportedBy,
     required this.isCheapest,
   });
 
@@ -171,6 +199,8 @@ class SupermarketPriceComparison {
       previousPriceBs: (json['previous_price_bs'] as num?)?.toDouble(),
       diffUsd: (json['diff_usd'] as num?)?.toDouble() ?? 0.0,
       increasePercentUsd: (json['increase_percent_usd'] as num?)?.toDouble() ?? 0.0,
+      verifiedAt: json['verified_at'] as String?,
+      reportedBy: json['reported_by'] as String?,
       isCheapest: json['is_cheapest'] ?? false,
     );
   }
@@ -210,6 +240,9 @@ class SupermarketRanking {
   final String? description;
   final String? phone;
   final String? openingHours;
+  final double? latitude;
+  final double? longitude;
+  final String storeType;
   final double totalBasketUsd;
   final double totalBasketBs;
   final int productsTracked;
@@ -227,6 +260,9 @@ class SupermarketRanking {
     this.description,
     this.phone,
     this.openingHours,
+    this.latitude,
+    this.longitude,
+    this.storeType = 'supermercado',
     required this.totalBasketUsd,
     required this.totalBasketBs,
     required this.productsTracked,
@@ -246,6 +282,9 @@ class SupermarketRanking {
       description: json['description'],
       phone: json['phone'],
       openingHours: json['opening_hours'],
+      latitude: (json['latitude'] as num?)?.toDouble(),
+      longitude: (json['longitude'] as num?)?.toDouble(),
+      storeType: json['store_type'] ?? 'supermercado',
       totalBasketUsd: (json['total_basket_usd'] as num?)?.toDouble() ?? 0.0,
       totalBasketBs: (json['total_basket_bs'] as num?)?.toDouble() ?? 0.0,
       productsTracked: json['products_tracked'] ?? 0,
@@ -306,6 +345,22 @@ class GroceryListModel {
           .toList(),
     );
   }
+
+  Map<String, dynamic> toJson() => {
+        'id': id,
+        'title': title,
+        'supermarket_id': supermarketId,
+        'supermarket_name': supermarketName,
+        'status': status,
+        'total_items': totalItems,
+        'checked_items': checkedItems,
+        'progress_percent': progressPercent,
+        'total_estimated_usd': totalEstimatedUsd,
+        'total_estimated_bs': totalEstimatedBs,
+        'total_checked_usd': totalCheckedUsd,
+        'total_checked_bs': totalCheckedBs,
+        'items': items.map((i) => i.toJson()).toList(),
+      };
 }
 
 class GroceryListItemModel {
@@ -334,7 +389,7 @@ class GroceryListItemModel {
   factory GroceryListItemModel.fromJson(Map<String, dynamic> json) {
     return GroceryListItemModel(
       id: json['id'],
-      listId: json['list_id'],
+      listId: json['list_id'] ?? 0,
       productId: json['product_id'],
       productName: json['product_name'] ?? 'Producto',
       quantity: (json['quantity'] as num?)?.toDouble() ?? 1.0,
@@ -344,4 +399,16 @@ class GroceryListItemModel {
       isChecked: json['is_checked'] == 1 || json['is_checked'] == true,
     );
   }
+
+  Map<String, dynamic> toJson() => {
+        'id': id,
+        'list_id': listId,
+        'product_id': productId,
+        'product_name': productName,
+        'quantity': quantity,
+        'unit': unit,
+        'price_bs': priceBs,
+        'price_usd': priceUsd,
+        'is_checked': isChecked ? 1 : 0,
+      };
 }

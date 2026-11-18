@@ -69,6 +69,9 @@ export const CARABOBO_SUPERMARKETS = [
     description: 'Supermercado gourmet y de alta gama con charcutería importada, cortes de carne premium, bodegón exclusivo, cava de vinos y panadería artesanal.',
     phone: '+58 241-8422461',
     opening_hours: 'Lun-Dom: 7:30 AM - 9:00 PM',
+    latitude: 10.2335,
+    longitude: -68.0067,
+    store_type: 'supermercado',
     price_factor: 1.14
   },
   {
@@ -80,6 +83,9 @@ export const CARABOBO_SUPERMARKETS = [
     description: 'Supermercado premium en la zona norte de Valencia con área de delicateses, sushi bar, bodegón de productos importados y frutas/verduras de primera calidad.',
     phone: '+58 241-8254412',
     opening_hours: 'Lun-Dom: 7:30 AM - 9:00 PM',
+    latitude: 10.2148,
+    longitude: -68.0205,
+    store_type: 'supermercado',
     price_factor: 1.15
   },
   {
@@ -91,6 +97,9 @@ export const CARABOBO_SUPERMARKETS = [
     description: 'Hipermercado de gran formato al mayor y detal con los precios más competitivos en canasta básica, charcutería por volumen, carnes y artículos para el hogar.',
     phone: '+58 241-8716100',
     opening_hours: 'Lun-Sáb: 7:30 AM - 8:30 PM, Dom: 8:00 AM - 7:00 PM',
+    latitude: 10.2289,
+    longitude: -67.9592,
+    store_type: 'hipermercado',
     price_factor: 0.90
   },
   {
@@ -102,6 +111,9 @@ export const CARABOBO_SUPERMARKETS = [
     description: 'Hipermercado de alto volumen de ventas al mayor y detal para el eje oriental de Carabobo. Máximo ahorro en canasta básica y víveres al mayor.',
     phone: '+58 241-8641122',
     opening_hours: 'Lun-Dom: 8:00 AM - 8:00 PM',
+    latitude: 10.1846,
+    longitude: -67.9348,
+    store_type: 'hipermercado',
     price_factor: 0.89
   },
   {
@@ -113,6 +125,9 @@ export const CARABOBO_SUPERMARKETS = [
     description: 'Hipermercado con ofertas masivas en víveres al por mayor y detal, carnicería y congelados para el sur de Valencia.',
     phone: '+58 241-8389010',
     opening_hours: 'Lun-Dom: 8:00 AM - 8:00 PM',
+    latitude: 10.1452,
+    longitude: -67.9535,
+    store_type: 'hipermercado',
     price_factor: 0.91
   },
   {
@@ -124,6 +139,9 @@ export const CARABOBO_SUPERMARKETS = [
     description: 'Supermercado tradicional de Valencia Norte, reconocido por sus cortes de carnes maduradas, charcutería selecta, panadería fresca y bodegón.',
     phone: '+58 241-8245566',
     opening_hours: 'Lun-Dom: 8:00 AM - 8:30 PM',
+    latitude: 10.2112,
+    longitude: -68.0168,
+    store_type: 'supermercado',
     price_factor: 1.08
   },
   {
@@ -135,6 +153,9 @@ export const CARABOBO_SUPERMARKETS = [
     description: 'Supermercado formato boutique con víveres importados, quesos madurados, cava de licores y atención personalizada.',
     phone: '+58 241-8431050',
     opening_hours: 'Lun-Sáb: 8:00 AM - 8:00 PM, Dom: 9:00 AM - 6:00 PM',
+    latitude: 10.2352,
+    longitude: -68.0054,
+    store_type: 'supermercado',
     price_factor: 1.09
   },
   {
@@ -146,6 +167,9 @@ export const CARABOBO_SUPERMARKETS = [
     description: 'Supermercado referente y de tradición familiar en San Diego con amplia variedad en víveres, frutas, hortalizas frescas y farmacia.',
     phone: '+58 241-8714420',
     opening_hours: 'Lun-Sáb: 7:30 AM - 8:00 PM, Dom: 8:00 AM - 4:00 PM',
+    latitude: 10.2384,
+    longitude: -67.9571,
+    store_type: 'supermercado',
     price_factor: 0.97
   },
   {
@@ -157,6 +181,9 @@ export const CARABOBO_SUPERMARKETS = [
     description: 'Supermercado de cercanía y compras ágiles de vecindario, con charcutería fresca, panadería y víveres esenciales.',
     phone: '+58 241-8718890',
     opening_hours: 'Lun-Dom: 8:00 AM - 7:30 PM',
+    latitude: 10.2442,
+    longitude: -67.9614,
+    store_type: 'supermercado',
     price_factor: 0.98
   },
   {
@@ -168,6 +195,9 @@ export const CARABOBO_SUPERMARKETS = [
     description: 'Moderna cadena nacional en formato hipermercado. Gran surtido de marcas nacionales e importadas, cafetería, farmacia y descuentos constantes.',
     phone: '+58 241-8219900',
     opening_hours: 'Lun-Dom: 8:00 AM - 9:00 PM',
+    latitude: 10.2036,
+    longitude: -68.0049,
+    store_type: 'hipermercado',
     price_factor: 1.01
   },
   {
@@ -179,6 +209,9 @@ export const CARABOBO_SUPERMARKETS = [
     description: 'Tradicional cadena de supermercados enfocada en la economía familiar y productos de cesta básica a precios accesibles.',
     phone: '+58 241-8342201',
     opening_hours: 'Lun-Sáb: 8:00 AM - 7:30 PM, Dom: 8:30 AM - 3:00 PM',
+    latitude: 10.1591,
+    longitude: -67.9693,
+    store_type: 'supermercado',
     price_factor: 0.95
   },
   {
@@ -190,6 +223,9 @@ export const CARABOBO_SUPERMARKETS = [
     description: 'Supermercado céntrico en Naguanagua con víveres, charcutería y artículos del hogar para compras del día a día.',
     phone: '+58 241-8671150',
     opening_hours: 'Lun-Sáb: 8:00 AM - 7:30 PM, Dom: 8:30 AM - 4:00 PM',
+    latitude: 10.2415,
+    longitude: -68.0079,
+    store_type: 'supermercado',
     price_factor: 0.96
   },
   {
@@ -201,6 +237,9 @@ export const CARABOBO_SUPERMARKETS = [
     description: 'Hipermercado de alto volumen de ventas en el casco central de Valencia, especializado en combos de comida económicos y compras por bulto.',
     phone: '+58 241-8573310',
     opening_hours: 'Lun-Sáb: 7:30 AM - 7:00 PM, Dom: 8:00 AM - 3:00 PM',
+    latitude: 10.1782,
+    longitude: -68.0021,
+    store_type: 'hipermercado',
     price_factor: 0.92
   },
   {
@@ -212,6 +251,9 @@ export const CARABOBO_SUPERMARKETS = [
     description: 'Supermercado de alta tradición en El Trigal con excelente carnicería, charcutería seleccionada, víveres nacionales e importados y panadería.',
     phone: '+58 241-8428800',
     opening_hours: 'Lun-Dom: 8:00 AM - 8:00 PM',
+    latitude: 10.2185,
+    longitude: -67.9972,
+    store_type: 'supermercado',
     price_factor: 1.04
   },
   {
@@ -223,6 +265,9 @@ export const CARABOBO_SUPERMARKETS = [
     description: 'Supermercado de referencia en Puerto Cabello con productos frescos, bodegón importado, cortes de carne premium y pescadería del día.',
     phone: '+58 242-3642100',
     opening_hours: 'Lun-Sáb: 8:00 AM - 8:00 PM, Dom: 8:30 AM - 6:00 PM',
+    latitude: 10.4648,
+    longitude: -68.0125,
+    store_type: 'supermercado',
     price_factor: 1.07
   },
   {
@@ -234,6 +279,9 @@ export const CARABOBO_SUPERMARKETS = [
     description: 'Supermercado de gran formato para el municipio Guacara, con gran surtido de víveres populares, carnicería y charcutería económica.',
     phone: '+58 245-5649980',
     opening_hours: 'Lun-Dom: 8:00 AM - 7:30 PM',
+    latitude: 10.2256,
+    longitude: -67.8781,
+    store_type: 'supermercado',
     price_factor: 0.93
   },
   {
@@ -245,6 +293,9 @@ export const CARABOBO_SUPERMARKETS = [
     description: 'Hipermercado mayorista y detal integrado con megatienda de salud Redvital. Ideal para compras familiares en bultos y ahorro a escala.',
     phone: '+58 241-8710000',
     opening_hours: 'Lun-Dom: 8:00 AM - 8:00 PM',
+    latitude: 10.1947,
+    longitude: -67.9698,
+    store_type: 'hipermercado',
     price_factor: 0.91
   }
 ];
@@ -448,6 +499,53 @@ export const initDatabase = () => {
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
       FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
     );
+
+    -- Billeteras y Medios de Pago Venezolanos (Bs, Efectivo USD, Binance USDT, Zelle, Zinli/Wally, Euro)
+    CREATE TABLE IF NOT EXISTS wallets (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_id INTEGER NOT NULL,
+      name TEXT NOT NULL,
+      wallet_type TEXT NOT NULL, -- 'bolivares', 'efectivo_usd', 'binance_usdt', 'zelle', 'zinli_wally', 'euro', 'otro'
+      currency TEXT NOT NULL DEFAULT 'USD', -- 'VES', 'USD', 'USDT', 'EUR'
+      balance REAL NOT NULL DEFAULT 0,
+      account_details TEXT, -- Datos propios para recibir pagos (opcional)
+      color TEXT DEFAULT '#6366F1',
+      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+    );
+
+    -- Planes de Compras en Cuotas (Cashea, Krece, Chollo, Crédito Comercial cada 14 días)
+    CREATE TABLE IF NOT EXISTS installment_plans (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_id INTEGER NOT NULL,
+      provider TEXT NOT NULL DEFAULT 'Cashea',
+      merchant_name TEXT NOT NULL,
+      title TEXT NOT NULL,
+      total_amount REAL NOT NULL,
+      initial_paid REAL NOT NULL DEFAULT 0,
+      remaining_amount REAL NOT NULL,
+      installments_count INTEGER NOT NULL DEFAULT 3,
+      interval_days INTEGER NOT NULL DEFAULT 14,
+      purchase_date TEXT NOT NULL,
+      status TEXT NOT NULL DEFAULT 'activa', -- 'activa', 'pagada'
+      deduct_from_salary INTEGER DEFAULT 1,
+      notes TEXT,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+    );
+
+    -- Cuotas Individuales cada 14 días
+    CREATE TABLE IF NOT EXISTS installment_payments (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      plan_id INTEGER NOT NULL,
+      installment_number INTEGER NOT NULL,
+      amount REAL NOT NULL,
+      due_date TEXT NOT NULL,
+      is_paid INTEGER DEFAULT 0,
+      paid_at DATETIME,
+      FOREIGN KEY (plan_id) REFERENCES installment_plans(id) ON DELETE CASCADE
+    );
   `;
 
   db.exec(schema);
@@ -471,6 +569,8 @@ export const initDatabase = () => {
   addColumnIfNotExists('debts', 'currency', "TEXT DEFAULT 'USD'");
   addColumnIfNotExists('debts', 'deduct_from_salary', 'INTEGER DEFAULT 0');
   addColumnIfNotExists('debts', 'is_borrowed', 'INTEGER DEFAULT 0');
+  addColumnIfNotExists('debts', 'payment_method_type', "TEXT DEFAULT 'Pago Móvil'");
+  addColumnIfNotExists('debts', 'payment_details', 'TEXT');
 
   addColumnIfNotExists('categories', 'user_id', 'INTEGER REFERENCES users(id) ON DELETE CASCADE');
   addColumnIfNotExists('expenses', 'user_id', 'INTEGER REFERENCES users(id) ON DELETE CASCADE');
@@ -483,28 +583,28 @@ export const initDatabase = () => {
   addColumnIfNotExists('supermarkets', 'description', 'TEXT');
   addColumnIfNotExists('supermarkets', 'phone', 'TEXT');
   addColumnIfNotExists('supermarkets', 'opening_hours', 'TEXT');
+  addColumnIfNotExists('supermarkets', 'latitude', 'REAL');
+  addColumnIfNotExists('supermarkets', 'longitude', 'REAL');
+  addColumnIfNotExists('supermarkets', 'store_type', "TEXT DEFAULT 'supermercado'");
 
-  // Semilla de tasas de cambio predeterminadas
-  const ratesCount = db.prepare('SELECT COUNT(*) as count FROM exchange_rates').get().count;
-  if (ratesCount === 0) {
-    const defaultRates = [
-      { id: 'usd_oficial', currency: 'USD', provider: 'oficial', name: 'Dólar BCV Oficial', rate: 914.02, previous_rate: 911.20, change_percent: 0.31, last_updated: new Date().toISOString() },
-      { id: 'usd_paralelo', currency: 'USD', provider: 'paralelo', name: 'Dólar Paralelo / Monitor', rate: 1045.50, previous_rate: 1032.00, change_percent: 1.31, last_updated: new Date().toISOString() },
-      { id: 'eur_oficial', currency: 'EUR', provider: 'oficial', name: 'Euro BCV Oficial', rate: 1010.56, previous_rate: 1005.10, change_percent: 0.54, last_updated: new Date().toISOString() },
-      { id: 'eur_paralelo', currency: 'EUR', provider: 'paralelo', name: 'Euro Paralelo', rate: 1120.00, previous_rate: 1110.00, change_percent: 0.90, last_updated: new Date().toISOString() }
-    ];
+  addColumnIfNotExists('grocery_prices', 'barcode', 'TEXT');
+  addColumnIfNotExists('grocery_prices', 'reported_by', "TEXT DEFAULT 'Kryon'");
+  addColumnIfNotExists('grocery_prices', 'verified_at', 'TEXT');
 
-    const insertRate = db.prepare(`
-      INSERT INTO exchange_rates (id, currency, provider, name, rate, previous_rate, change_percent, last_updated)
-      VALUES (@id, @currency, @provider, @name, @rate, @previous_rate, @change_percent, @last_updated)
-    `);
+  // Semilla de tasas de cambio predeterminadas (incluye USDT Binance P2P y Euro BCV)
+  const defaultRates = [
+    { id: 'usd_oficial', currency: 'USD', provider: 'oficial', name: 'Dólar BCV Oficial', rate: 914.02, previous_rate: 911.20, change_percent: 0.31, last_updated: new Date().toISOString() },
+    { id: 'usd_paralelo', currency: 'USD', provider: 'paralelo', name: 'Dólar Paralelo / Monitor', rate: 1045.50, previous_rate: 1032.00, change_percent: 1.31, last_updated: new Date().toISOString() },
+    { id: 'usdt_binance', currency: 'USDT', provider: 'binance', name: 'USDT Binance P2P', rate: 1052.00, previous_rate: 1038.50, change_percent: 1.30, last_updated: new Date().toISOString() },
+    { id: 'eur_oficial', currency: 'EUR', provider: 'oficial', name: 'Euro BCV Oficial', rate: 1010.56, previous_rate: 1005.10, change_percent: 0.54, last_updated: new Date().toISOString() },
+    { id: 'eur_paralelo', currency: 'EUR', provider: 'paralelo', name: 'Euro Paralelo', rate: 1120.00, previous_rate: 1110.00, change_percent: 0.90, last_updated: new Date().toISOString() }
+  ];
 
-    const insertAllRates = db.transaction((rates) => {
-      for (const r of rates) insertRate.run(r);
-    });
-
-    insertAllRates(defaultRates);
-  }
+  const insertRateOrIgnore = db.prepare(`
+    INSERT OR IGNORE INTO exchange_rates (id, currency, provider, name, rate, previous_rate, change_percent, last_updated)
+    VALUES (@id, @currency, @provider, @name, @rate, @previous_rate, @change_percent, @last_updated)
+  `);
+  for (const r of defaultRates) insertRateOrIgnore.run(r);
 
   // Semilla de categorías predeterminadas
   const count = db.prepare('SELECT COUNT(*) as count FROM categories WHERE user_id IS NULL').get().count;
@@ -538,15 +638,16 @@ export const initDatabase = () => {
   // Limpiar supermercados de prueba antiguos sin dirección ni descripción
   db.prepare('DELETE FROM supermarkets WHERE address IS NULL AND user_id IS NULL').run();
 
-  // Semilla y actualización de Supermercados de Carabobo y Venezuela
+  // Semilla y actualización de Supermercados de Carabobo y Venezuela (con GPS y tipo de tienda)
   const upsertSuper = db.prepare(`
-    INSERT INTO supermarkets (name, branch, state, municipality, address, description, phone, opening_hours, user_id)
-    VALUES (@name, @branch, @state, @municipality, @address, @description, @phone, @opening_hours, NULL)
+    INSERT INTO supermarkets (name, branch, state, municipality, address, description, phone, opening_hours, latitude, longitude, store_type, user_id)
+    VALUES (@name, @branch, @state, @municipality, @address, @description, @phone, @opening_hours, @latitude, @longitude, @store_type, NULL)
   `);
 
   const updateSuper = db.prepare(`
     UPDATE supermarkets
-    SET state = @state, municipality = @municipality, address = @address, description = @description, phone = @phone, opening_hours = @opening_hours
+    SET state = @state, municipality = @municipality, address = @address, description = @description,
+        phone = @phone, opening_hours = @opening_hours, latitude = @latitude, longitude = @longitude, store_type = @store_type
     WHERE name = @name AND (branch = @branch OR (@branch IS NULL AND branch IS NULL))
   `);
 
